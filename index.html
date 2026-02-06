@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ramz E Takhleeq - Billing System</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Login Screen -->
+    <div id="loginScreen" class="screen active">
+        <div class="login-container">
+            <h1>Ramz E Takhleeq</h1>
+            <h2>Billing System</h2>
+            <div class="login-form">
+                <select id="username">
+                    <option value="">Select User</option>
+                    <option value="admin">Admin</option>
+                    <option value="biller">Biller</option>
+                </select>
+                <input type="password" id="password" placeholder="Password">
+                <button onclick="login()">Login</button>
+                <p id="loginError" class="error"></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Application -->
+    <div id="mainApp" class="screen">
+        <!-- Header -->
+        <header>
+            <div class="header-content">
+                <h1>Ramz E Takhleeq</h1>
+                <div class="user-info">
+                    <span id="currentUser"></span>
+                    <button onclick="logout()" class="btn-logout">Logout</button>
+                </div>
+            </div>
+            <nav>
+                <button class="tab-btn active" onclick="switchTab('billing')">Billing</button>
+                <button class="tab-btn" onclick="switchTab('dashboard')">Dashboard</button>
+                <button class="tab-btn" onclick="switchTab('receipts')">Receipts</button>
+                <button class="tab-btn admin-only" onclick="switchTab('products')">Manage Products</button>
+            </nav>
+        </header>
+
+        <!-- Billing Tab -->
+        <div id="billingTab" class="tab-content active">
+            <h2>New Bill</h2>
+            <div class="billing-container">
+                <div class="product-selection">
+                    <h3>Select Products</h3>
+                    <div class="search-box">
+                        <input type="text" id="productSearch" placeholder="Search products by name or ID..." oninput="filterProducts()">
+                    </div>
+                    <div class="category-filter">
+                        <select id="categoryFilter" onchange="filterProducts()">
+                            <option value="all">All Categories</option>
+                        </select>
+                    </div>
+                    <div id="productList" class="product-list"></div>
+                </div>
+                
+                <div class="cart-section">
+                    <h3>Current Bill</h3>
+                    <div id="cartItems" class="cart-items"></div>
+                    <div class="cart-summary">
+                        <div class="summary-row">
+                            <span>Total Cost:</span>
+                            <span id="totalCost">Rs. 0</span>
+                        </div>
+                        <div class="summary-row">
+                            <span>Total Sale:</span>
+                            <span id="totalSale">Rs. 0</span>
+                        </div>
+                        <div class="summary-row profit">
+                            <span>Profit:</span>
+                            <span id="totalProfit">Rs. 0</span>
+                        </div>
+                        <div class="cart-actions">
+                            <button onclick="clearCart()" class="btn-secondary">Clear</button>
+                            <button onclick="generateReceipt()" class="btn-primary">Generate Receipt</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dashboard Tab -->
+        <div id="dashboardTab" class="tab-content">
+            <h2>Dashboard</h2>
+            <div class="dashboard-summary">
+                <div class="summary-card">
+                    <h3>Total Revenue</h3>
+                    <p class="big-number" id="totalRevenue">Rs. 0</p>
+                </div>
+                <div class="summary-card">
+                    <h3>Total Profit</h3>
+                    <p class="big-number profit" id="dashboardProfit">Rs. 0</p>
+                </div>
+                <div class="summary-card">
+                    <h3>Cash in Hand</h3>
+                    <p class="big-number" id="cashInHand">Rs. 0</p>
+                </div>
+                <div class="summary-card">
+                    <h3>Total Items Sold</h3>
+                    <p class="big-number" id="totalItemsSold">0</p>
+                </div>
+            </div>
+            
+            <h3>Product Sales Breakdown</h3>
+            <div class="filter-section">
+                <select id="dashboardCategoryFilter" onchange="updateDashboard()">
+                    <option value="all">All Categories</option>
+                </select>
+            </div>
+            <div id="productSalesTable" class="data-table"></div>
+        </div>
+
+        <!-- Receipts Tab -->
+        <div id="receiptsTab" class="tab-content">
+            <h2>Receipt History</h2>
+            <div class="receipts-filter">
+                <input type="date" id="dateFilter" onchange="filterReceipts()">
+                <button onclick="clearDateFilter()" class="btn-secondary">Clear Filter</button>
+                <button onclick="deleteAllReceipts()" class="btn-delete admin-only" style="margin-left: 10px;">Delete All Records</button>
+            </div>
+            <div id="receiptsList" class="receipts-list"></div>
+        </div>
+
+        <!-- Products Management Tab (Admin Only) -->
+        <div id="productsTab" class="tab-content">
+            <h2>Manage Products</h2>
+            
+            <div class="management-section">
+                <h3>Add/Edit Category</h3>
+                <div class="form-inline">
+                    <input type="text" id="newCategoryName" placeholder="Category Name">
+                    <button onclick="addCategory()" class="btn-primary">Add Category</button>
+                </div>
+                <div id="categoriesList" class="items-list"></div>
+            </div>
+
+            <div class="management-section">
+                <h3>Add/Edit Product</h3>
+                <div class="product-form">
+                    <select id="productCategory">
+                        <option value="">Select Category</option>
+                    </select>
+                    <input type="text" id="productName" placeholder="Product Name/Type">
+                    <input type="number" id="productCost" placeholder="Cost Price" step="0.01">
+                    <input type="number" id="productSale" placeholder="Sale Price" step="0.01">
+                    <button onclick="addProduct()" class="btn-primary">Add Product</button>
+                </div>
+                <div class="filter-section">
+                    <select id="productManagementCategoryFilter" onchange="renderProductManagement()">
+                        <option value="all">All Categories</option>
+                    </select>
+                </div>
+                <div id="productsManagementList" class="items-list"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Receipt Print Modal -->
+    <div id="receiptModal" class="modal">
+        <div class="modal-content receipt-print">
+            <div id="receiptContent"></div>
+            <div class="modal-actions">
+                <button onclick="printReceipt()" class="btn-primary">Print</button>
+                <button onclick="closeReceiptModal()" class="btn-secondary">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
