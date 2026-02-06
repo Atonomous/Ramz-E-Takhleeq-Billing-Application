@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ramz E Takhleeq - Billing System</title>
     <link rel="stylesheet" href="styles.css">
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
 </head>
 <body>
     <!-- Login Screen -->
@@ -21,6 +24,7 @@
                 <input type="password" id="password" placeholder="Password">
                 <button onclick="login()">Login</button>
                 <p id="loginError" class="error"></p>
+                <p id="firebaseStatus" style="margin-top: 15px; font-size: 12px; color: #666;"></p>
             </div>
         </div>
     </div>
@@ -131,6 +135,12 @@
         <!-- Products Management Tab (Admin Only) -->
         <div id="productsTab" class="tab-content">
             <h2>Manage Products</h2>
+            <div style="margin-bottom: 20px;">
+                <button onclick="manualSave()" class="btn-primary">💾 Save All Data</button>
+                <button onclick="exportData()" class="btn-secondary" style="margin-left: 10px;">📥 Export Data</button>
+                <input type="file" id="importFile" accept=".json" style="display: none;" onchange="importData(event)">
+                <button onclick="document.getElementById('importFile').click()" class="btn-secondary" style="margin-left: 10px;">📤 Import Data</button>
+            </div>
             
             <div class="management-section">
                 <h3>Add/Edit Category</h3>

@@ -1,3 +1,37 @@
+// Firebase Configuration
+// IMPORTANT: Replace this with your own Firebase config from Firebase Console
+// Go to: https://console.firebase.google.com/
+// 1. Create a new project
+// 2. Go to Project Settings > General > Your apps > Web app
+// 3. Copy the firebaseConfig object and replace below
+const firebaseConfig = {
+  apiKey: "AIzaSyBLAI8Enu-SEwINh52RqS0iO8I-0AFhYS8",
+  authDomain: "ramz-e-takhleeq.firebaseapp.com",
+  databaseURL: "https://ramz-e-takhleeq-default-rtdb.firebaseio.com",
+  projectId: "ramz-e-takhleeq",
+  storageBucket: "ramz-e-takhleeq.firebasestorage.app",
+  messagingSenderId: "204404301642",
+  appId: "1:204404301642:web:f6d609749cdd10a9adebb3"
+};
+
+// Initialize Firebase
+let database = null;
+let isFirebaseEnabled = false;
+
+try {
+    if (typeof firebase !== 'undefined' && firebaseConfig.apiKey !== "YOUR_API_KEY") {
+        firebase.initializeApp(firebaseConfig);
+        database = firebase.database();
+        isFirebaseEnabled = true;
+        console.log('✓ Firebase connected - Cloud sync enabled');
+    } else {
+        console.log('⚠ Firebase not configured - Using localStorage only');
+    }
+} catch (error) {
+    console.error('Firebase initialization error:', error);
+    console.log('⚠ Falling back to localStorage');
+}
+
 // Data Storage
 let currentUser = null;
 let cart = [];
@@ -7,9 +41,22 @@ let receipts = [];
 
 // Initialize App
 function init() {
-    loadData();
-    initializeDefaultData();
-    checkAuth();
+    loadData().then(() => {
+        initializeDefaultData();
+        checkAuth();
+        
+        // Set up real-time sync listener if Firebase is enabled
+        if (isFirebaseEnabled && database) {
+            database.ref('billingData').on('value', (snapshot) => {
+                const data = snapshot.val();
+                if (data && !currentUser) { // Only sync when logged out
+                    products = data.products || [];
+                    categories = data.categories || [];
+                    receipts = data.receipts || [];
+                }
+            });
+        }
+    });
 }
 
 // Authentication
@@ -65,12 +112,28 @@ function showMainApp() {
         document.body.classList.remove('admin');
     }
     
+    console.log('Loaded products count:', products.length);
+    console.log('Loaded categories count:', categories.length);
+    console.log('Loaded receipts count:', receipts.length);
+    
     switchTab('billing');
     updateCategoryFilters();
     renderProducts();
 }
 
 function checkAuth() {
+    // Show Firebase status
+    const statusEl = document.getElementById('firebaseStatus');
+    if (statusEl) {
+        if (isFirebaseEnabled) {
+            statusEl.innerHTML = '✓ Cloud sync enabled';
+            statusEl.style.color = 'var(--primary-green)';
+        } else {
+            statusEl.innerHTML = '⚠ Cloud sync not configured - <a href="#" onclick="showFirebaseInstructions(); return false;">Setup Instructions</a>';
+            statusEl.style.color = '#e67e22';
+        }
+    }
+    
     if (currentUser) {
         showMainApp();
     }
@@ -116,8 +179,14 @@ function initializeDefaultData() {
             { id: 7, name: 'Counters' },
             { id: 8, name: 'Stickers' },
             { id: 9, name: 'Crochet' },
-            { id: 10, name: 'Baking' }
+            { id: 10, name: 'Baking' },
+            { id: 11, name: 'Jewelry' }
         ];
+    } else {
+        // Ensure Jewelry category exists for existing users
+        if (!categories.find(c => c.name === 'Jewelry')) {
+            categories.push({ id: 11, name: 'Jewelry' });
+        }
     }
     
     if (products.length === 0) {
@@ -127,8 +196,17 @@ function initializeDefaultData() {
                 id: Date.now() + i,
                 categoryId: 1,
                 name: `A5-${String(i + 1).padStart(3, '0')}`,
-                costPrice: 0,
-                salePrice: 0,
+                costPrice: 350,
+                salePrice: 600,
+                soldCount: 0
+            })),
+            // Pocket Diaries
+            ...Array.from({ length: 12 }, (_, i) => ({
+                id: Date.now() + 50 + i,
+                categoryId: 2,
+                name: `PD-${String(i + 1).padStart(3, '0')}`,
+                costPrice: 60,
+                salePrice: 150,
                 soldCount: 0
             })),
             // Cards
@@ -138,21 +216,26 @@ function initializeDefaultData() {
             { id: Date.now() + 103, categoryId: 3, name: 'XL', costPrice: 0, salePrice: 0, soldCount: 0 },
             { id: Date.now() + 104, categoryId: 3, name: 'XXL', costPrice: 0, salePrice: 0, soldCount: 0 },
             // Ramzan Calendar
-            { id: Date.now() + 200, categoryId: 4, name: 'A4', costPrice: 0, salePrice: 0, soldCount: 0 },
-            { id: Date.now() + 201, categoryId: 4, name: 'Small', costPrice: 0, salePrice: 0, soldCount: 0 },
+            { id: Date.now() + 200, categoryId: 4, name: 'A4', costPrice: 70, salePrice: 150, soldCount: 0 },
+            { id: Date.now() + 201, categoryId: 4, name: 'Small without stand', costPrice: 25, salePrice: 100, soldCount: 0 },
+            { id: Date.now() + 202, categoryId: 4, name: 'Small with stand', costPrice: 155, salePrice: 350, soldCount: 0 },
             // 2026 Calendars
             ...Array.from({ length: 10 }, (_, i) => ({
                 id: Date.now() + 300 + i,
                 categoryId: 5,
                 name: `DC-${String(i + 1).padStart(3, '0')}`,
-                costPrice: 0,
-                salePrice: 0,
+                costPrice: 450,
+                salePrice: 1000,
                 soldCount: 0
             })),
             // Bookmarks
             { id: Date.now() + 400, categoryId: 6, name: 'Printed', costPrice: 0, salePrice: 0, soldCount: 0 },
             { id: Date.now() + 401, categoryId: 6, name: 'Hand made', costPrice: 0, salePrice: 0, soldCount: 0 },
             { id: Date.now() + 402, categoryId: 6, name: 'Ramzan Juz Tracker', costPrice: 0, salePrice: 0, soldCount: 0 },
+            // Counters
+            { id: Date.now() + 450, categoryId: 7, name: 'Universal', costPrice: 0, salePrice: 0, soldCount: 0 },
+            // Stickers
+            { id: Date.now() + 460, categoryId: 8, name: 'Universal', costPrice: 0, salePrice: 0, soldCount: 0 },
             // Crochet items
             { id: Date.now() + 500, categoryId: 9, name: 'Bandana Type 1', costPrice: 0, salePrice: 0, soldCount: 0 },
             { id: Date.now() + 501, categoryId: 9, name: 'Bandana Type 2', costPrice: 0, salePrice: 0, soldCount: 0 },
@@ -164,7 +247,11 @@ function initializeDefaultData() {
             { id: Date.now() + 507, categoryId: 9, name: 'Wallet', costPrice: 0, salePrice: 0, soldCount: 0 },
             { id: Date.now() + 508, categoryId: 9, name: 'Keychain Type 1', costPrice: 0, salePrice: 0, soldCount: 0 },
             { id: Date.now() + 509, categoryId: 9, name: 'Keychain Type 2', costPrice: 0, salePrice: 0, soldCount: 0 },
-            { id: Date.now() + 510, categoryId: 9, name: 'Keychain Type 3', costPrice: 0, salePrice: 0, soldCount: 0 }
+            { id: Date.now() + 510, categoryId: 9, name: 'Keychain Type 3', costPrice: 0, salePrice: 0, soldCount: 0 },
+            // Baking
+            { id: Date.now() + 600, categoryId: 10, name: 'Universal', costPrice: 0, salePrice: 0, soldCount: 0 },
+            // Jewelry
+            { id: Date.now() + 700, categoryId: 11, name: 'Universal', costPrice: 0, salePrice: 0, soldCount: 0 }
         ];
     }
     
@@ -542,13 +629,30 @@ function updateDashboard() {
     let totalItemsSold = 0;
     
     receipts.forEach(receipt => {
-        totalRevenue += receipt.totalSale;
-        totalProfit += receipt.totalProfit;
-        totalCost += receipt.totalCost;
-        totalItemsSold += receipt.items.reduce((sum, item) => sum + item.quantity, 0);
+        receipt.items.forEach(item => {
+            // If filtering by category, only include items from that category
+            if (categoryFilter !== 'all') {
+                const product = products.find(p => p.id === item.productId);
+                if (!product || product.categoryId != categoryFilter) {
+                    return; // Skip this item
+                }
+            }
+            
+            const itemRevenue = item.salePrice * item.quantity;
+            const itemCost = item.costPrice * item.quantity;
+            const itemProfit = itemRevenue - itemCost;
+            
+            totalRevenue += itemRevenue;
+            totalCost += itemCost;
+            totalProfit += itemProfit;
+            totalItemsSold += item.quantity;
+        });
     });
     
     const cashInHand = totalCost + totalProfit;
+    
+    // Update category name in headers
+    const categoryName = categoryFilter === 'all' ? 'All Categories' : categories.find(c => c.id == categoryFilter)?.name || 'Unknown';
     
     document.getElementById('totalRevenue').textContent = `Rs. ${totalRevenue.toFixed(2)}`;
     document.getElementById('dashboardProfit').textContent = `Rs. ${totalProfit.toFixed(2)}`;
@@ -738,6 +842,8 @@ function addProduct() {
     document.getElementById('productSale').value = '';
     
     saveData();
+    // Force immediate save
+    setTimeout(() => saveData(), 100);
     renderProductManagement();
     renderProducts();
 }
@@ -754,7 +860,24 @@ function updateProductPrice(productId, priceType, value) {
         product.salePrice = numValue;
     }
     
+    // Save immediately
     saveData();
+    
+    // Force another save after a delay
+    setTimeout(() => {
+        saveData();
+        console.log('Product price saved:', product.name, priceType, numValue);
+    }, 100);
+    
+    // Visual feedback that data was saved
+    const productRow = document.getElementById(`product-${productId}`);
+    if (productRow) {
+        productRow.style.backgroundColor = '#d4edda';
+        setTimeout(() => {
+            productRow.style.backgroundColor = '';
+        }, 500);
+    }
+    
     renderProducts(); // Update billing page products
 }
 
@@ -769,29 +892,201 @@ function deleteProduct(productId) {
     renderProducts();
 }
 
-// Data Persistence
-function saveData() {
-    localStorage.setItem('billingSystem', JSON.stringify({
-        currentUser,
+function manualSave() {
+    if (saveData()) {
+        alert('All data saved successfully!');
+    }
+}
+
+function exportData() {
+    const data = {
         products,
         categories,
-        receipts
-    }));
+        receipts,
+        exportDate: new Date().toISOString()
+    };
+    
+    const dataStr = JSON.stringify(data, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `ramz-e-takhleeq-backup-${new Date().toISOString().split('T')[0]}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+    alert('Data exported successfully!');
+}
+
+function importData(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const data = JSON.parse(e.target.result);
+            if (confirm('This will replace all current data. Are you sure?')) {
+                products = data.products || [];
+                categories = data.categories || [];
+                receipts = data.receipts || [];
+                saveData();
+                alert('Data imported successfully!');
+                renderProductManagement();
+                updateCategoryFilters();
+            }
+        } catch (error) {
+            alert('Error importing data: ' + error.message);
+        }
+    };
+    reader.readAsText(file);
+    event.target.value = ''; // Reset file input
+}
+
+// Data Persistence
+function saveData() {
+    const data = {
+        products,
+        categories,
+        receipts,
+        lastSaved: new Date().toISOString()
+    };
+    
+    // Save to localStorage as backup
+    try {
+        const localData = {
+            currentUser,
+            ...data
+        };
+        localStorage.setItem('billingSystem', JSON.stringify(localData));
+    } catch (error) {
+        console.error('localStorage save error:', error);
+    }
+    
+    // Save to Firebase if enabled
+    if (isFirebaseEnabled && database) {
+        return database.ref('billingData').set(data)
+            .then(() => {
+                console.log('✓ Data synced to cloud at', data.lastSaved);
+                return true;
+            })
+            .catch((error) => {
+                console.error('✗ Firebase save error:', error);
+                alert('Cloud sync failed. Data saved locally only.');
+                return false;
+            });
+    } else {
+        console.log('✓ Data saved locally at', data.lastSaved);
+        return Promise.resolve(true);
+    }
 }
 
 function loadData() {
-    const data = localStorage.getItem('billingSystem');
-    if (data) {
-        const parsed = JSON.parse(data);
-        currentUser = parsed.currentUser;
-        products = parsed.products || [];
-        categories = parsed.categories || [];
-        receipts = parsed.receipts || [];
+    // Try loading from localStorage first (for currentUser)
+    try {
+        const localData = localStorage.getItem('billingSystem');
+        if (localData) {
+            const parsed = JSON.parse(localData);
+            currentUser = parsed.currentUser;
+        }
+    } catch (error) {
+        console.error('localStorage load error:', error);
     }
+    
+    // Load from Firebase if enabled
+    if (isFirebaseEnabled && database) {
+        return database.ref('billingData').once('value')
+            .then((snapshot) => {
+                const data = snapshot.val();
+                if (data) {
+                    products = data.products || [];
+                    categories = data.categories || [];
+                    receipts = data.receipts || [];
+                    console.log('✓ Data loaded from cloud - Products:', products.length, 'Categories:', categories.length, 'Receipts:', receipts.length);
+                } else {
+                    console.log('⚠ No cloud data found, using defaults');
+                }
+                return true;
+            })
+            .catch((error) => {
+                console.error('✗ Firebase load error:', error);
+                // Fall back to localStorage
+                loadFromLocalStorage();
+                return false;
+            });
+    } else {
+        // Use localStorage
+        loadFromLocalStorage();
+        return Promise.resolve(true);
+    }
+}
+
+function loadFromLocalStorage() {
+    try {
+        const localData = localStorage.getItem('billingSystem');
+        if (localData) {
+            const parsed = JSON.parse(localData);
+            currentUser = parsed.currentUser;
+            products = parsed.products || [];
+            categories = parsed.categories || [];
+            receipts = parsed.receipts || [];
+            console.log('✓ Data loaded from localStorage - Products:', products.length);
+        }
+    } catch (error) {
+        console.error('localStorage load error:', error);
+    }
+}
+
+function showFirebaseInstructions() {
+    const instructions = `
+FIREBASE CLOUD SYNC SETUP:
+
+1. Go to: https://console.firebase.google.com/
+2. Click "Add Project" (or use existing)
+3. Enter project name: "Ramz-E-Takhleeq"
+4. Disable Google Analytics (optional)
+5. Click "Create Project"
+
+6. In Firebase Console:
+   - Click "Realtime Database" in left menu
+   - Click "Create Database"
+   - Choose location closest to you
+   - Start in "Test Mode" (public access)
+   - Click "Enable"
+
+7. Get your config:
+   - Click the gear icon (⚙) > Project settings
+   - Scroll to "Your apps" section
+   - Click "Web" button (</>) to add web app
+   - Register app with nickname "Billing System"
+   - Copy the firebaseConfig object
+
+8. Open app.js file in your code
+   - Find the firebaseConfig section at the top
+   - Replace the placeholder values with your config
+   - Save the file
+
+9. Refresh the page - Cloud sync will be active!
+
+Note: In Test Mode, anyone with the link can access data.
+For production, set up Firebase Authentication.
+    `;
+    alert(instructions);
 }
 
 // Initialize on page load
 window.addEventListener('DOMContentLoaded', init);
+
+// Save data before page unload
+window.addEventListener('beforeunload', function(e) {
+    saveData();
+});
+
+// Auto-save every 5 seconds
+setInterval(() => {
+    if (products.length > 0 || categories.length > 0 || receipts.length > 0) {
+        saveData();
+    }
+}, 5000);
 
 // Handle Enter key in login form
 document.addEventListener('DOMContentLoaded', () => {
