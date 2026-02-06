@@ -47,12 +47,32 @@ function init() {
         
         // Set up real-time sync listener if Firebase is enabled
         if (isFirebaseEnabled && database) {
+            console.log('✓ Setting up real-time Firebase sync');
             database.ref('billingData').on('value', (snapshot) => {
                 const data = snapshot.val();
-                if (data && !currentUser) { // Only sync when logged out
+                if (data) {
                     products = data.products || [];
                     categories = data.categories || [];
                     receipts = data.receipts || [];
+                    console.log('✓ Real-time update received - Products:', products.length);
+                    
+                    // Update UI if logged in
+                    if (currentUser) {
+                        const activeTab = document.querySelector('.tab-content.active');
+                        if (activeTab) {
+                            const tabId = activeTab.id;
+                            if (tabId === 'billingTab') {
+                                renderProducts();
+                                updateCart();
+                            } else if (tabId === 'dashboardTab') {
+                                updateDashboard();
+                            } else if (tabId === 'receiptsTab') {
+                                renderReceipts();
+                            } else if (tabId === 'productsTab') {
+                                renderProductManagement();
+                            }
+                        }
+                    }
                 }
             });
         }
@@ -92,7 +112,7 @@ function login() {
 function logout() {
     currentUser = null;
     cart = [];
-    saveData();
+    localStorage.removeItem('currentUser');
     document.getElementById('mainApp').classList.remove('active');
     document.getElementById('loginScreen').classList.add('active');
     document.getElementById('username').value = '';
@@ -1009,18 +1029,14 @@ function saveData() {
         lastSaved: new Date().toISOString()
     };
     
-    // Save to localStorage as backup
+    // Save currentUser to localStorage only (not synced to cloud)
     try {
-        const localData = {
-            currentUser,
-            ...data
-        };
-        localStorage.setItem('billingSystem', JSON.stringify(localData));
+        localStorage.setItem('currentUser', JSON.stringify(currentUser));
     } catch (error) {
         console.error('localStorage save error:', error);
     }
     
-    // Save to Firebase if enabled
+    // Save to Firebase (primary storage)
     if (isFirebaseEnabled && database) {
         return database.ref('billingData').set(data)
             .then(() => {
@@ -1029,28 +1045,34 @@ function saveData() {
             })
             .catch((error) => {
                 console.error('✗ Firebase save error:', error);
-                alert('Cloud sync failed. Data saved locally only.');
+                alert('Cloud sync failed. Check your internet connection.');
                 return false;
             });
     } else {
-        console.log('✓ Data saved locally at', data.lastSaved);
-        return Promise.resolve(true);
+        // Fallback to localStorage if Firebase not enabled
+        try {
+            localStorage.setItem('billingSystem', JSON.stringify({ currentUser, ...data }));
+            console.log('✓ Data saved locally at', data.lastSaved);
+            return Promise.resolve(true);
+        } catch (error) {
+            console.error('✗ localStorage save error:', error);
+            return Promise.resolve(false);
+        }
     }
 }
 
 function loadData() {
-    // Try loading from localStorage first (for currentUser)
+    // Load currentUser from localStorage (login state is device-specific)
     try {
-        const localData = localStorage.getItem('billingSystem');
-        if (localData) {
-            const parsed = JSON.parse(localData);
-            currentUser = parsed.currentUser;
+        const userData = localStorage.getItem('currentUser');
+        if (userData) {
+            currentUser = JSON.parse(userData);
         }
     } catch (error) {
-        console.error('localStorage load error:', error);
+        console.error('localStorage currentUser load error:', error);
     }
     
-    // Load from Firebase if enabled
+    // Load everything else ONLY from Firebase (cloud is the single source of truth)
     if (isFirebaseEnabled && database) {
         return database.ref('billingData').once('value')
             .then((snapshot) => {
@@ -1059,20 +1081,22 @@ function loadData() {
                     products = data.products || [];
                     categories = data.categories || [];
                     receipts = data.receipts || [];
-                    console.log('✓ Data loaded from cloud - Products:', products.length, 'Categories:', categories.length, 'Receipts:', receipts.length);
+                    console.log('✓ Data loaded from CLOUD - Products:', products.length, 'Categories:', categories.length, 'Receipts:', receipts.length);
                 } else {
-                    console.log('⚠ No cloud data found, using defaults');
+                    console.log('⚠ No cloud data found, initializing defaults');
                 }
                 return true;
             })
             .catch((error) => {
                 console.error('✗ Firebase load error:', error);
-                // Fall back to localStorage
+                alert('Cannot connect to cloud database. Please check your internet connection.');
+                // Fall back to localStorage only if Firebase completely fails
                 loadFromLocalStorage();
                 return false;
             });
     } else {
-        // Use localStorage
+        // Use localStorage only if Firebase is not configured
+        console.log('⚠ Firebase not enabled, using localStorage');
         loadFromLocalStorage();
         return Promise.resolve(true);
     }
