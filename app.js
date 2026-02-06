@@ -126,8 +126,18 @@ function checkAuth() {
     const statusEl = document.getElementById('firebaseStatus');
     if (statusEl) {
         if (isFirebaseEnabled) {
-            statusEl.innerHTML = '✓ Cloud sync enabled';
-            statusEl.style.color = 'var(--primary-green)';
+            // Test Firebase connection
+            database.ref('.info/connected').on('value', (snapshot) => {
+                if (snapshot.val() === true) {
+                    statusEl.innerHTML = '✓ Cloud sync ACTIVE & CONNECTED';
+                    statusEl.style.color = 'var(--primary-green)';
+                    console.log('✓ Firebase is connected and working');
+                } else {
+                    statusEl.innerHTML = '⚠ Cloud sync enabled but NOT CONNECTED';
+                    statusEl.style.color = '#e67e22';
+                    console.error('✗ Firebase not connected');
+                }
+            });
         } else {
             statusEl.innerHTML = '⚠ Cloud sync not configured - <a href="#" onclick="showFirebaseInstructions(); return false;">Setup Instructions</a>';
             statusEl.style.color = '#e67e22';
