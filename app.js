@@ -991,18 +991,7 @@ function saveData() {
 }
 
 function loadData() {
-    // Try loading from localStorage first (for currentUser)
-    try {
-        const localData = localStorage.getItem('billingSystem');
-        if (localData) {
-            const parsed = JSON.parse(localData);
-            currentUser = parsed.currentUser;
-        }
-    } catch (error) {
-        console.error('localStorage load error:', error);
-    }
-    
-    // Load from Firebase if enabled
+    // Load from Firebase first if enabled (cloud data takes priority)
     if (isFirebaseEnabled && database) {
         return database.ref('billingData').once('value')
             .then((snapshot) => {
@@ -1011,9 +1000,21 @@ function loadData() {
                     products = data.products || [];
                     categories = data.categories || [];
                     receipts = data.receipts || [];
-                    console.log('✓ Data loaded from cloud - Products:', products.length, 'Categories:', categories.length, 'Receipts:', receipts.length);
+                    console.log('✓ Data loaded from CLOUD - Products:', products.length, 'Categories:', categories.length, 'Receipts:', receipts.length);
+                    
+                    // Save to localStorage as backup
+                    try {
+                        const localData = localStorage.getItem('billingSystem');
+                        if (localData) {
+                            const parsed = JSON.parse(localData);
+                            currentUser = parsed.currentUser;
+                        }
+                    } catch (error) {
+                        console.error('localStorage load error:', error);
+                    }
                 } else {
-                    console.log('⚠ No cloud data found, using defaults');
+                    console.log('⚠ No cloud data found, loading from localStorage');
+                    loadFromLocalStorage();
                 }
                 return true;
             })
@@ -1024,7 +1025,8 @@ function loadData() {
                 return false;
             });
     } else {
-        // Use localStorage
+        // Use localStorage only if Firebase not enabled
+        console.log('⚠ Firebase not enabled, using localStorage');
         loadFromLocalStorage();
         return Promise.resolve(true);
     }
