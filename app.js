@@ -713,16 +713,17 @@ function updateDashboard() {
     document.getElementById('cashInHand').textContent = `Rs. ${cashInHand.toFixed(2)}`;
     document.getElementById('totalItemsSold').textContent = totalItemsSold;
     
-    // Product sales breakdown
-    let filteredProducts = products;
+    // Product sales breakdown - Only show products that have been sold
+    let filteredProducts = products.filter(p => (p.soldCount || 0) > 0);
+    
     if (categoryFilter !== 'all') {
-        filteredProducts = products.filter(p => p.categoryId == categoryFilter);
+        filteredProducts = filteredProducts.filter(p => p.categoryId == categoryFilter);
     }
     
     const tableEl = document.getElementById('productSalesTable');
     
     if (filteredProducts.length === 0) {
-        tableEl.innerHTML = '<p style="text-align: center; padding: 40px; color: #666;">No products found</p>';
+        tableEl.innerHTML = '<p style="text-align: center; padding: 40px; color: #666;">No products sold yet</p>';
         return;
     }
     
@@ -734,9 +735,10 @@ function updateDashboard() {
                     <th>Category</th>
                     <th>Cost Price</th>
                     <th>Sale Price</th>
+                    <th>Profit per Item</th>
                     <th>Quantity Sold</th>
-                    <th>Revenue</th>
-                    <th>Profit</th>
+                    <th>Total Revenue</th>
+                    <th>Total Profit</th>
                 </tr>
             </thead>
             <tbody>
@@ -744,8 +746,9 @@ function updateDashboard() {
     
     filteredProducts.forEach(product => {
         const category = categories.find(c => c.id === product.categoryId);
+        const profitPerItem = product.salePrice - product.costPrice;
         const revenue = product.soldCount * product.salePrice;
-        const profit = product.soldCount * (product.salePrice - product.costPrice);
+        const totalProfit = product.soldCount * profitPerItem;
         
         tableHTML += `
             <tr>
@@ -753,9 +756,10 @@ function updateDashboard() {
                 <td>${category ? category.name : 'Unknown'}</td>
                 <td>Rs. ${product.costPrice.toFixed(2)}</td>
                 <td>Rs. ${product.salePrice.toFixed(2)}</td>
-                <td>${product.soldCount || 0}</td>
+                <td style="color: ${profitPerItem >= 0 ? 'var(--primary-green)' : '#c0392b'}; font-weight: 600;">Rs. ${profitPerItem.toFixed(2)}</td>
+                <td>${product.soldCount}</td>
                 <td>Rs. ${revenue.toFixed(2)}</td>
-                <td style="color: var(--primary-green); font-weight: 600;">Rs. ${profit.toFixed(2)}</td>
+                <td style="color: var(--primary-green); font-weight: 600;">Rs. ${totalProfit.toFixed(2)}</td>
             </tr>
         `;
     });
