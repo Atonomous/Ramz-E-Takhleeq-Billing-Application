@@ -481,11 +481,52 @@ function generateReceipt() {
     saveData();
     
     // Clear cart
-    cart = [];
+    cart = [];;
     updateCart();
     
-    // Show receipt
-    showReceipt(receipt);
+    // Show customer receipt (no cost/profit info)
+    showCustomerReceipt(receipt);
+}
+
+function showCustomerReceipt(receipt) {
+    const receiptContent = document.getElementById('receiptContent');
+    const date = new Date(receipt.date);
+    
+    let itemsHTML = '';
+    receipt.items.forEach(item => {
+        const category = categories.find(c => c.id === item.categoryId);
+        itemsHTML += `
+            <div class="receipt-item-row">
+                <div>
+                    <strong>${item.productName}</strong> (${category ? category.name : 'Unknown'})<br>
+                    <small>${item.quantity} x Rs. ${item.salePrice.toFixed(2)}</small>
+                </div>
+                <div><strong>Rs. ${(item.quantity * item.salePrice).toFixed(2)}</strong></div>
+            </div>
+        `;
+    });
+    
+    receiptContent.innerHTML = `
+        <div class="receipt-header-print">
+            <h2>Ramz E Takhleeq</h2>
+            <p>Receipt #${receipt.id}</p>
+            <p>${date.toLocaleDateString()} ${date.toLocaleTimeString()}</p>
+        </div>
+        <div class="receipt-items">
+            ${itemsHTML}
+        </div>
+        <div class="receipt-totals">
+            <div class="receipt-total-row grand">
+                <span>Total Amount:</span>
+                <span>Rs. ${receipt.totalSale.toFixed(2)}</span>
+            </div>
+        </div>
+        <div style="text-align: center; margin-top: 20px; padding-top: 15px; border-top: 2px dashed #333;">
+            <p>Thank you for your business!</p>
+        </div>
+    `;
+    
+    document.getElementById('receiptModal').classList.add('active');
 }
 
 function showReceipt(receipt) {
@@ -568,7 +609,6 @@ function renderReceipts() {
         const date = new Date(receipt.date);
         const div = document.createElement('div');
         div.className = 'receipt-card';
-        div.onclick = () => showReceipt(receipt);
         div.innerHTML = `
             <div class="receipt-header">
                 <span class="receipt-id">${receipt.id}</span>
@@ -587,6 +627,10 @@ function renderReceipts() {
                     <span>Profit</span>
                     <strong style="color: var(--primary-green);">Rs. ${receipt.totalProfit.toFixed(2)}</strong>
                 </div>
+            </div>
+            <div style="display: flex; gap: 10px; margin-top: 10px;">
+                <button onclick="showReceipt(receipts.find(r => r.id === '${receipt.id}'))" class="btn-secondary" style="flex: 1; padding: 8px;">View Full Details</button>
+                <button onclick="showCustomerReceipt(receipts.find(r => r.id === '${receipt.id}'))" class="btn-primary" style="flex: 1; padding: 8px;">Customer Receipt</button>
             </div>
         `;
         receiptsList.appendChild(div);
