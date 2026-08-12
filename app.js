@@ -1092,19 +1092,40 @@ function addCategory() {
 }
 
 function deleteCategory(categoryId) {
-    const productsInCategory = products.filter(p => p.categoryId === categoryId);
+    const cat = categories.find(c => c.id == categoryId);
+    const categoryName = cat ? cat.name : 'Category';
+    const productsInCategory = products.filter(p => p.categoryId == categoryId);
+    
+    let msg = `Are you sure you want to delete category "${categoryName}"?`;
     if (productsInCategory.length > 0) {
-        if (!confirm('This category has products. Deleting it will also delete all products in this category. Continue?')) {
-            return;
-        }
-        products = products.filter(p => p.categoryId !== categoryId);
+        msg = `Deleting "${categoryName}" will automatically delete all ${productsInCategory.length} product(s) in this category. Continue?`;
     }
     
-    categories = categories.filter(c => c.id !== categoryId);
+    if (!confirm(msg)) {
+        return;
+    }
+    
+    // Automatically delete all products related to this category
+    const deletedProductIds = productsInCategory.map(p => p.id);
+    products = products.filter(p => p.categoryId != categoryId);
+    
+    // Clean up cart if any removed items were present
+    if (deletedProductIds.length > 0) {
+        cart = cart.filter(item => !deletedProductIds.includes(item.productId));
+        updateCart();
+    }
+    
+    // Delete category
+    categories = categories.filter(c => c.id != categoryId);
+    
     saveData();
-    showToast('Category deleted', 'info');
+    showToast(`✓ Category "${categoryName}" & related products deleted`, 'info');
+    
+    // Refresh all views
     updateCategoryFilters();
+    renderProducts();
     renderProductManagement();
+    updateDashboard();
 }
 
 function addProduct() {
