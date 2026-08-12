@@ -32,6 +32,14 @@ try {
     console.log('⚠ Falling back to localStorage');
 }
 
+// Array Normalizer Helper (Converts Firebase JSON Objects to Arrays safely)
+function ensureArray(val) {
+    if (!val) return [];
+    if (Array.isArray(val)) return val;
+    if (typeof val === 'object') return Object.values(val);
+    return [];
+}
+
 // UI Notification & Status Helpers
 function showToast(message, type = 'info', duration = 3500) {
     const container = document.getElementById('toastContainer');
@@ -88,10 +96,11 @@ function init() {
             database.ref('billingData').on('value', (snapshot) => {
                 const data = snapshot.val();
                 if (data) {
-                    products = data.products || [];
-                    categories = data.categories || [];
-                    receipts = data.receipts || [];
-                    console.log('✓ Real-time update received - Products:', products.length);
+                    products = ensureArray(data.products);
+                    categories = ensureArray(data.categories);
+                    receipts = ensureArray(data.receipts);
+                    console.log('✓ Real-time update received - Products:', products.length, 'Categories:', categories.length);
+                    updateCategoryFilters();
                     
                     // Update UI if logged in
                     if (currentUser) {
@@ -336,6 +345,10 @@ function initializeDefaultData() {
 
 // Product Display and Filtering
 function updateCategoryFilters() {
+    categories = ensureArray(categories);
+    products = ensureArray(products);
+    receipts = ensureArray(receipts);
+    
     const filters = [
         document.getElementById('categoryFilter'),
         document.getElementById('dashboardCategoryFilter'),
@@ -354,13 +367,16 @@ function updateCategoryFilters() {
         }
         
         categories.forEach(cat => {
+            if (!cat || cat.id === undefined || cat.id === null) return;
             const option = document.createElement('option');
             option.value = cat.id;
-            option.textContent = cat.name;
+            option.textContent = cat.name || 'Unnamed Category';
             select.appendChild(option);
         });
         
-        if (currentValue) select.value = currentValue;
+        if (currentValue) {
+            select.value = currentValue;
+        }
     });
 }
 
@@ -1349,9 +1365,9 @@ function importData(event) {
         try {
             const data = JSON.parse(e.target.result);
             if (confirm('This will replace all current data. Are you sure?')) {
-                products = data.products || [];
-                categories = data.categories || [];
-                receipts = data.receipts || [];
+                products = ensureArray(data.products);
+                categories = ensureArray(data.categories);
+                receipts = ensureArray(data.receipts);
                 saveData(true);
                 showToast('✓ Data imported successfully!', 'success');
                 renderProductManagement();
@@ -1368,9 +1384,9 @@ function importData(event) {
 // Data Persistence (Offline-First Dual Storage)
 function saveData(isUserInitiated = false) {
     const data = {
-        products,
-        categories,
-        receipts,
+        products: ensureArray(products),
+        categories: ensureArray(categories),
+        receipts: ensureArray(receipts),
         lastSaved: new Date().toISOString()
     };
     
@@ -1434,11 +1450,12 @@ function loadData() {
             .then((snapshot) => {
                 const data = snapshot.val();
                 if (data) {
-                    products = data.products || [];
-                    categories = data.categories || [];
-                    receipts = data.receipts || [];
+                    products = ensureArray(data.products);
+                    categories = ensureArray(data.categories);
+                    receipts = ensureArray(data.receipts);
                     console.log('✓ Data loaded from CLOUD - Products:', products.length, 'Categories:', categories.length, 'Receipts:', receipts.length);
                     updateSyncBadge('synced', '🟢 Cloud Synced', 'Connected to cloud database');
+                    updateCategoryFilters();
                     // Cache to local storage as well
                     try {
                         localStorage.setItem('billingSystem', JSON.stringify({ currentUser, ...data }));
@@ -1471,10 +1488,11 @@ function loadFromLocalStorage() {
         if (localData) {
             const parsed = JSON.parse(localData);
             currentUser = parsed.currentUser;
-            products = parsed.products || [];
-            categories = parsed.categories || [];
-            receipts = parsed.receipts || [];
-            console.log('✓ Data loaded from localStorage - Products:', products.length);
+            products = ensureArray(parsed.products);
+            categories = ensureArray(parsed.categories);
+            receipts = ensureArray(parsed.receipts);
+            console.log('✓ Data loaded from localStorage - Products:', products.length, 'Categories:', categories.length);
+            updateCategoryFilters();
         }
     } catch (error) {
         console.error('localStorage load error:', error);
