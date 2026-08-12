@@ -36,6 +36,7 @@
             <div class="header-content">
                 <h1>Ramz E Takhleeq</h1>
                 <div class="user-info">
+                    <span id="syncStatusBadge" class="sync-badge"></span>
                     <span id="currentUser"></span>
                     <button onclick="logout()" class="btn-logout">Logout</button>
                 </div>
@@ -182,6 +183,9 @@
             </div>
         </div>
     </div>
+
+    <!-- Toast Notifications Container -->
+    <div id="toastContainer" class="toast-container"></div>
 
     <script src="app.js"></script>
 </body>

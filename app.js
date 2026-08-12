@@ -32,6 +32,32 @@ try {
     console.log('⚠ Falling back to localStorage');
 }
 
+// UI Notification & Status Helpers
+function showToast(message, type = 'info', duration = 3500) {
+    const container = document.getElementById('toastContainer');
+    if (!container) return;
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.innerHTML = message;
+    container.appendChild(toast);
+    setTimeout(() => {
+        toast.classList.add('fade-out');
+        setTimeout(() => {
+            if (toast.parentNode) {
+                toast.parentNode.removeChild(toast);
+            }
+        }, 300);
+    }, duration);
+}
+
+function updateSyncBadge(status, text, title) {
+    const badge = document.getElementById('syncStatusBadge');
+    if (!badge) return;
+    badge.className = `sync-badge ${status}`;
+    badge.textContent = text;
+    if (title) badge.title = title;
+}
+
 // Data Storage
 let currentUser = null;
 let cart = [];
@@ -74,6 +100,9 @@ function init() {
                         }
                     }
                 }
+            }, (error) => {
+                console.warn('Firebase real-time sync error:', error);
+                updateSyncBadge('local', '🟡 Saved Locally', 'Real-time sync error: ' + (error.message || 'Offline'));
             });
         }
     });
@@ -463,7 +492,7 @@ function clearCart() {
 // Receipt Generation
 function generateReceipt() {
     if (cart.length === 0) {
-        alert('Cart is empty!');
+        showToast('Cart is empty!', 'warning');
         return;
     }
     
@@ -864,7 +893,7 @@ function renderProductManagement() {
 function addCategory() {
     const name = document.getElementById('newCategoryName').value.trim();
     if (!name) {
-        alert('Please enter a category name');
+        showToast('Please enter a category name', 'warning');
         return;
     }
     
@@ -875,6 +904,7 @@ function addCategory() {
     
     document.getElementById('newCategoryName').value = '';
     saveData();
+    showToast('✓ Category added', 'success');
     updateCategoryFilters();
     renderProductManagement();
 }
@@ -890,6 +920,7 @@ function deleteCategory(categoryId) {
     
     categories = categories.filter(c => c.id !== categoryId);
     saveData();
+    showToast('Category deleted', 'info');
     updateCategoryFilters();
     renderProductManagement();
 }
@@ -901,7 +932,7 @@ function addProduct() {
     const salePrice = parseFloat(document.getElementById('productSale').value) || 0;
     
     if (!categoryId || !name) {
-        alert('Please fill in all fields');
+        showToast('Please fill in all fields', 'warning');
         return;
     }
     
@@ -971,9 +1002,7 @@ function deleteProduct(productId) {
 }
 
 function manualSave() {
-    if (saveData()) {
-        alert('All data saved successfully!');
-    }
+    saveData(true);
 }
 
 function exportData() {
@@ -992,7 +1021,7 @@ function exportData() {
     link.download = `ramz-e-takhleeq-backup-${new Date().toISOString().split('T')[0]}.json`;
     link.click();
     URL.revokeObjectURL(url);
-    alert('Data exported successfully!');
+    showToast('✓ Data exported successfully!', 'success');
 }
 
 function importData(event) {
@@ -1007,21 +1036,21 @@ function importData(event) {
                 products = data.products || [];
                 categories = data.categories || [];
                 receipts = data.receipts || [];
-                saveData();
-                alert('Data imported successfully!');
+                saveData(true);
+                showToast('✓ Data imported successfully!', 'success');
                 renderProductManagement();
                 updateCategoryFilters();
             }
         } catch (error) {
-            alert('Error importing data: ' + error.message);
+            showToast('Error importing data: ' + error.message, 'error');
         }
     };
     reader.readAsText(file);
     event.target.value = ''; // Reset file input
 }
 
-// Data Persistence
-function saveData() {
+// Data Persistence (Offline-First Dual Storage)
+function saveData(isUserInitiated = false) {
     const data = {
         products,
         categories,
@@ -1029,35 +1058,46 @@ function saveData() {
         lastSaved: new Date().toISOString()
     };
     
-    // Save currentUser to localStorage only (not synced to cloud)
+    // 1. ALWAYS save to localStorage first (Guaranteed local fallback)
     try {
         localStorage.setItem('currentUser', JSON.stringify(currentUser));
+        localStorage.setItem('billingSystem', JSON.stringify({ currentUser, ...data }));
+        console.log('✓ Data saved locally at', data.lastSaved);
     } catch (error) {
-        console.error('localStorage save error:', error);
+        console.error('✗ localStorage save error:', error);
     }
     
-    // Save to Firebase (primary storage)
+    // 2. Sync to Firebase if enabled
     if (isFirebaseEnabled && database) {
         return database.ref('billingData').set(data)
             .then(() => {
                 console.log('✓ Data synced to cloud at', data.lastSaved);
+                updateSyncBadge('synced', '🟢 Cloud Synced', 'All changes saved to cloud database');
+                if (isUserInitiated) {
+                    showToast('✓ Data saved & synced to cloud', 'success');
+                }
                 return true;
             })
             .catch((error) => {
                 console.error('✗ Firebase save error:', error);
-                alert('Cloud sync failed. Check your internet connection.');
+                const isPermissionDenied = error && (error.code === 'PERMISSION_DENIED' || (error.message && error.message.includes('permission_denied')));
+                const badgeTitle = isPermissionDenied 
+                    ? 'Cloud permission denied (Firebase rules may be expired). Saved locally.' 
+                    : 'Cloud sync offline. Data is safely saved locally.';
+                
+                updateSyncBadge('local', '🟡 Saved Locally', badgeTitle);
+                
+                if (isUserInitiated) {
+                    showToast('⚠ Cloud sync offline — saved locally', 'warning');
+                }
                 return false;
             });
     } else {
-        // Fallback to localStorage if Firebase not enabled
-        try {
-            localStorage.setItem('billingSystem', JSON.stringify({ currentUser, ...data }));
-            console.log('✓ Data saved locally at', data.lastSaved);
-            return Promise.resolve(true);
-        } catch (error) {
-            console.error('✗ localStorage save error:', error);
-            return Promise.resolve(false);
+        updateSyncBadge('local', '🟡 Local Mode', 'Running in local browser storage mode');
+        if (isUserInitiated) {
+            showToast('✓ Data saved locally', 'success');
         }
+        return Promise.resolve(true);
     }
 }
 
@@ -1072,7 +1112,7 @@ function loadData() {
         console.error('localStorage currentUser load error:', error);
     }
     
-    // Load everything else ONLY from Firebase (cloud is the single source of truth)
+    // Load data from Firebase primary storage, falling back to localStorage seamlessly
     if (isFirebaseEnabled && database) {
         return database.ref('billingData').once('value')
             .then((snapshot) => {
@@ -1082,22 +1122,29 @@ function loadData() {
                     categories = data.categories || [];
                     receipts = data.receipts || [];
                     console.log('✓ Data loaded from CLOUD - Products:', products.length, 'Categories:', categories.length, 'Receipts:', receipts.length);
+                    updateSyncBadge('synced', '🟢 Cloud Synced', 'Connected to cloud database');
+                    // Cache to local storage as well
+                    try {
+                        localStorage.setItem('billingSystem', JSON.stringify({ currentUser, ...data }));
+                    } catch (e) {}
                 } else {
-                    console.log('⚠ No cloud data found, initializing defaults');
+                    console.log('⚠ No cloud data found, checking local storage');
+                    loadFromLocalStorage();
+                    updateSyncBadge('synced', '🟢 Cloud Synced', 'Connected (Database initialized)');
                 }
                 return true;
             })
             .catch((error) => {
                 console.error('✗ Firebase load error:', error);
-                alert('Cannot connect to cloud database. Please check your internet connection.');
-                // Fall back to localStorage only if Firebase completely fails
                 loadFromLocalStorage();
+                updateSyncBadge('local', '🟡 Local Mode', 'Cloud unavailable. Using local storage data.');
+                showToast('⚠ Cloud database offline. Operating in Local Mode.', 'warning');
                 return false;
             });
     } else {
-        // Use localStorage only if Firebase is not configured
         console.log('⚠ Firebase not enabled, using localStorage');
         loadFromLocalStorage();
+        updateSyncBadge('local', '🟡 Local Mode', 'Firebase not configured.');
         return Promise.resolve(true);
     }
 }
