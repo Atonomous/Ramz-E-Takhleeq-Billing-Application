@@ -176,6 +176,12 @@ function showMainApp() {
     console.log('Loaded categories count:', categories.length);
     console.log('Loaded receipts count:', receipts.length);
     
+    const savedFixedCost = localStorage.getItem('defaultFixedOrderCost');
+    const fixedCostEl = document.getElementById('fixedOrderCost');
+    if (fixedCostEl && savedFixedCost !== null) {
+        fixedCostEl.value = savedFixedCost;
+    }
+    
     switchTab('billing');
     updateCategoryFilters();
     renderProducts();
@@ -486,7 +492,7 @@ function updateCart() {
         cartItems.appendChild(div);
     });
     
-    // Process Discount
+    // Process Discount & Fixed Order Expense
     const discountType = document.getElementById('discountType')?.value || 'fixed';
     const discountValue = parseFloat(document.getElementById('discountValue')?.value) || 0;
     
@@ -497,12 +503,30 @@ function updateCart() {
         discountAmount = Math.min(discountValue, subtotalSale);
     }
     
+    const fixedOrderCostInput = document.getElementById('fixedOrderCost');
+    let fixedOrderCost = parseFloat(fixedOrderCostInput?.value);
+    if (isNaN(fixedOrderCost)) fixedOrderCost = 20;
+    
+    // Save preferred default fixed order fee locally
+    try {
+        localStorage.setItem('defaultFixedOrderCost', fixedOrderCost.toString());
+    } catch(e) {}
+    
+    const productBaseCost = totalCost;
+    const combinedTotalCost = productBaseCost + fixedOrderCost;
     const finalSale = Math.max(0, subtotalSale - discountAmount);
-    const totalProfit = finalSale - totalCost;
+    const totalProfit = finalSale - combinedTotalCost;
     
     const subtotalEl = document.getElementById('subtotalSale');
     if (subtotalEl) subtotalEl.textContent = `Rs. ${subtotalSale.toFixed(2)}`;
-    document.getElementById('totalCost').textContent = `Rs. ${totalCost.toFixed(2)}`;
+    
+    const productCostEl = document.getElementById('productCostDisplay');
+    if (productCostEl) productCostEl.textContent = `Rs. ${productBaseCost.toFixed(2)}`;
+    
+    const fixedCostEl = document.getElementById('fixedCostDisplay');
+    if (fixedCostEl) fixedCostEl.textContent = `Rs. ${fixedOrderCost.toFixed(2)}`;
+    
+    document.getElementById('totalCost').textContent = `Rs. ${combinedTotalCost.toFixed(2)}`;
     document.getElementById('totalSale').textContent = `Rs. ${finalSale.toFixed(2)}`;
     document.getElementById('totalProfit').textContent = `Rs. ${totalProfit.toFixed(2)}`;
     
@@ -535,13 +559,17 @@ function generateReceipt() {
     const discountValue = parseFloat(document.getElementById('discountValue')?.value) || 0;
     const paymentMethod = document.getElementById('paymentMethod')?.value || 'Cash';
     
+    const fixedOrderCostInput = document.getElementById('fixedOrderCost');
+    let fixedOrderCost = parseFloat(fixedOrderCostInput?.value);
+    if (isNaN(fixedOrderCost)) fixedOrderCost = 20;
+    
     let subtotalSale = 0;
-    let totalCost = 0;
+    let productBaseCost = 0;
     
     const items = cart.map(item => {
         const product = products.find(p => p.id === item.productId);
         const cost = product ? product.costPrice : 0;
-        totalCost += cost * item.quantity;
+        productBaseCost += cost * item.quantity;
         subtotalSale += item.salePrice * item.quantity;
         return {
             productId: item.productId,
@@ -560,8 +588,9 @@ function generateReceipt() {
         discountAmount = Math.min(discountValue, subtotalSale);
     }
     
+    const combinedTotalCost = productBaseCost + fixedOrderCost;
     const finalSale = Math.max(0, subtotalSale - discountAmount);
-    const totalProfit = finalSale - totalCost;
+    const totalProfit = finalSale - combinedTotalCost;
     
     const receipt = {
         id: 'REC-' + Date.now(),
@@ -571,8 +600,10 @@ function generateReceipt() {
         discountType: discountType,
         discountValue: discountValue,
         discountAmount: discountAmount,
+        fixedOrderCost: fixedOrderCost,
+        productBaseCost: productBaseCost,
         subtotalSale: subtotalSale,
-        totalCost: totalCost,
+        totalCost: combinedTotalCost,
         totalSale: finalSale,
         totalProfit: totalProfit,
         items: items

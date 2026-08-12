@@ -51,7 +51,10 @@
 
         <!-- Billing Tab -->
         <div id="billingTab" class="tab-content active">
-            <h2>New Bill</h2>
+            <div class="billing-tab-header">
+                <h2>New Bill</h2>
+                <button onclick="switchTab('dashboard')" class="btn-analytics-link">📊 View Data Analytics Cards</button>
+            </div>
             <div class="billing-container">
                 <div class="product-selection">
                     <h3>Select Products</h3>
@@ -88,8 +91,20 @@
                             <span>Discount Off:</span>
                             <span id="discountAmountDisplay">- Rs. 0</span>
                         </div>
+                        <div class="fixed-cost-control-group">
+                            <label for="fixedOrderCost">Fixed Order Expense / Fee (Rs.):</label>
+                            <input type="number" id="fixedOrderCost" value="20" min="0" step="1" oninput="updateCart()" placeholder="20">
+                        </div>
                         <div class="summary-row">
-                            <span>Total Cost:</span>
+                            <span>Product Base Cost:</span>
+                            <span id="productCostDisplay">Rs. 0</span>
+                        </div>
+                        <div class="summary-row fixed-cost-row">
+                            <span>Fixed Order Cost:</span>
+                            <span id="fixedCostDisplay">Rs. 20</span>
+                        </div>
+                        <div class="summary-row">
+                            <span>Total Cost (Base + Fee):</span>
                             <span id="totalCost">Rs. 0</span>
                         </div>
                         <div class="summary-row total-sale-row">

@@ -428,6 +428,65 @@ nav {
     width: 100px;
 }
 
+.billing-tab-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.btn-analytics-link {
+    background: var(--primary-green);
+    color: white;
+    padding: 8px 16px;
+    border-radius: 20px;
+    border: none;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 2px 8px var(--shadow);
+    transition: all 0.2s ease;
+}
+
+.btn-analytics-link:hover {
+    background: var(--light-green);
+    transform: translateY(-1px);
+}
+
+.fixed-cost-control-group {
+    margin: 12px 0;
+    padding: 10px;
+    background: #fff8e1;
+    border-radius: 6px;
+    border: 1px solid #ffe082;
+}
+
+.fixed-cost-control-group label {
+    font-weight: 600;
+    font-size: 14px;
+    display: block;
+    margin-bottom: 6px;
+    color: #b78103;
+}
+
+.fixed-cost-control-group input {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ffe082;
+    border-radius: 4px;
+    font-size: 15px;
+    font-weight: 600;
+    background: #fff;
+}
+
+.summary-row.fixed-cost-row {
+    color: #d35400;
+    font-size: 15px;
+    font-weight: 600;
+}
+
 .payment-method-group {
     margin-top: 15px;
     padding-top: 12px;
