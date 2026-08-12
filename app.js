@@ -227,6 +227,7 @@ function switchTab(tabName) {
 
 // Initialize Default Data
 function initializeDefaultData() {
+    let seeded = false;
     if (categories.length === 0) {
         categories = [
             { id: 1, name: 'Diaries' },
@@ -241,11 +242,7 @@ function initializeDefaultData() {
             { id: 10, name: 'Baking' },
             { id: 11, name: 'Jewelry' }
         ];
-    } else {
-        // Ensure Jewelry category exists for existing users
-        if (!categories.find(c => c.name === 'Jewelry')) {
-            categories.push({ id: 11, name: 'Jewelry' });
-        }
+        seeded = true;
     }
     
     if (products.length === 0) {
@@ -312,9 +309,12 @@ function initializeDefaultData() {
             // Jewelry
             { id: Date.now() + 700, categoryId: 11, name: 'Universal', costPrice: 0, salePrice: 0, soldCount: 0 }
         ];
+        seeded = true;
     }
     
-    saveData();
+    if (seeded) {
+        saveData();
+    }
 }
 
 // Product Display and Filtering
