@@ -1040,6 +1040,7 @@ function renderProductManagement() {
                 <div class="item-name">${category.name}</div>
             </div>
             <div class="item-actions">
+                <button class="btn-secondary" onclick="renameCategory(${category.id})" style="padding: 6px 14px; font-size: 13px;">✏️ Rename</button>
                 <button class="btn-delete" onclick="deleteCategory(${category.id})">Delete</button>
             </div>
         `;
@@ -1100,6 +1101,34 @@ function addCategory() {
     showToast('✓ Category added', 'success');
     updateCategoryFilters();
     renderProductManagement();
+}
+
+function renameCategory(categoryId) {
+    const category = categories.find(c => c.id == categoryId);
+    if (!category) return;
+    
+    const newName = prompt('Enter new name for category:', category.name);
+    if (newName === null) return; // User cancelled
+    
+    const trimmedName = newName.trim();
+    if (!trimmedName) {
+        showToast('Category name cannot be empty', 'warning');
+        return;
+    }
+    
+    if (trimmedName === category.name) return; // No change
+    
+    const oldName = category.name;
+    category.name = trimmedName;
+    
+    saveData();
+    showToast(`✓ Category renamed to "${trimmedName}"`, 'success');
+    
+    // Refresh all UI components
+    updateCategoryFilters();
+    renderProducts();
+    renderProductManagement();
+    updateDashboard();
 }
 
 function deleteCategory(categoryId) {
