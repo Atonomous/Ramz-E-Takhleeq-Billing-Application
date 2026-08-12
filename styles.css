@@ -378,6 +378,101 @@ nav {
     border-bottom: 1px solid var(--border-color);
 }
 
+.summary-row.total-sale-row {
+    font-weight: 700;
+    font-size: 20px;
+    color: var(--dark-text);
+}
+
+.summary-row.discount-row {
+    color: #c0392b;
+    font-weight: 600;
+    font-size: 16px;
+    border-bottom: 1px dashed #e74c3c;
+}
+
+.discount-control-group {
+    margin: 12px 0;
+    padding: 10px;
+    background: #fff;
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+}
+
+.discount-control-group label {
+    font-weight: 600;
+    font-size: 14px;
+    display: block;
+    margin-bottom: 6px;
+    color: var(--dark-text);
+}
+
+.discount-inputs {
+    display: flex;
+    gap: 8px;
+}
+
+.discount-inputs select,
+.discount-inputs input {
+    padding: 8px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.discount-inputs select {
+    flex: 1;
+}
+
+.discount-inputs input {
+    width: 100px;
+}
+
+.payment-method-group {
+    margin-top: 15px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border-color);
+}
+
+.payment-method-group label {
+    font-weight: 600;
+    font-size: 14px;
+    display: block;
+    margin-bottom: 6px;
+    color: var(--dark-text);
+}
+
+.payment-method-group select {
+    width: 100%;
+    padding: 10px;
+    border: 2px solid var(--border-color);
+    border-radius: 6px;
+    font-size: 15px;
+    font-weight: 600;
+    background: white;
+}
+
+/* Payment Badges */
+.badge-cash {
+    background: #e8f5e9;
+    color: #2e7d32;
+    border: 1px solid #a5d6a7;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.badge-online {
+    background: #e3f2fd;
+    color: #1565c0;
+    border: 1px solid #90caf9;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
 .summary-row.profit {
     font-weight: 700;
     font-size: 22px;
@@ -424,6 +519,45 @@ nav {
 }
 
 /* Dashboard */
+.dashboard-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.date-range-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: white;
+    padding: 8px 16px;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px var(--shadow);
+    border: 1px solid var(--border-color);
+}
+
+.date-range-bar label {
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.date-range-bar select,
+.custom-date-inputs input {
+    padding: 6px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.custom-date-inputs {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
 .dashboard-summary {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
@@ -432,13 +566,77 @@ nav {
 }
 
 .summary-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    text-align: left;
+    padding: 20px;
     background: white;
-    padding: 25px;
     border-radius: 12px;
     box-shadow: 0 4px 12px var(--shadow);
-    border: 2px solid var(--border-color);
-    text-align: center;
+    border: 1px solid var(--border-color);
+    transition: transform 0.2s, box-shadow 0.2s;
 }
+
+.summary-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0,0,0,0.1);
+}
+
+.card-header-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.card-icon-badge {
+    font-size: 22px;
+}
+
+.card-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: #555;
+    flex: 1;
+}
+
+.margin-badge {
+    font-size: 12px;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 12px;
+    background: #e8f5e9;
+    color: #2e7d32;
+    border: 1px solid #a5d6a7;
+}
+
+.card-subtext {
+    font-size: 12px;
+    color: #777;
+    margin-top: 6px;
+    margin-bottom: 10px;
+}
+
+.progress-bar-container {
+    width: 100%;
+    height: 6px;
+    background: #f0f4e8;
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.progress-bar-fill {
+    height: 100%;
+    transition: width 0.5s ease-in-out;
+    border-radius: 3px;
+}
+
+.revenue-bar { background: var(--primary-green); }
+.profit-bar { background: #27ae60; }
+.cost-bar { background: #e67e22; }
+.bills-bar { background: #2980b9; }
 
 .summary-card h3 {
     color: #666;

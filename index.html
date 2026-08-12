@@ -71,16 +71,41 @@
                     <div id="cartItems" class="cart-items"></div>
                     <div class="cart-summary">
                         <div class="summary-row">
+                            <span>Subtotal:</span>
+                            <span id="subtotalSale">Rs. 0</span>
+                        </div>
+                        <div class="discount-control-group">
+                            <label>Discount:</label>
+                            <div class="discount-inputs">
+                                <select id="discountType" onchange="updateCart()">
+                                    <option value="fixed">Rs. Fixed</option>
+                                    <option value="percentage">% Percent</option>
+                                </select>
+                                <input type="number" id="discountValue" value="0" min="0" placeholder="0" oninput="updateCart()">
+                            </div>
+                        </div>
+                        <div class="summary-row discount-row" id="discountRow" style="display: none;">
+                            <span>Discount Off:</span>
+                            <span id="discountAmountDisplay">- Rs. 0</span>
+                        </div>
+                        <div class="summary-row">
                             <span>Total Cost:</span>
                             <span id="totalCost">Rs. 0</span>
                         </div>
-                        <div class="summary-row">
-                            <span>Total Sale:</span>
+                        <div class="summary-row total-sale-row">
+                            <span>Final Sale:</span>
                             <span id="totalSale">Rs. 0</span>
                         </div>
                         <div class="summary-row profit">
-                            <span>Profit:</span>
+                            <span>Est. Profit:</span>
                             <span id="totalProfit">Rs. 0</span>
+                        </div>
+                        <div class="payment-method-group">
+                            <label for="paymentMethod">Payment Method:</label>
+                            <select id="paymentMethod">
+                                <option value="Cash">💵 Cash</option>
+                                <option value="Online">💳 Online / Bank</option>
+                            </select>
                         </div>
                         <div class="cart-actions">
                             <button onclick="clearCart()" class="btn-secondary">Clear</button>
@@ -93,23 +118,74 @@
 
         <!-- Dashboard Tab -->
         <div id="dashboardTab" class="tab-content">
-            <h2>Dashboard</h2>
+            <div class="dashboard-header">
+                <h2>Dashboard Analytics</h2>
+                <div class="date-range-bar">
+                    <label for="dateRangePreset">📅 Period:</label>
+                    <select id="dateRangePreset" onchange="handleDatePresetChange()">
+                        <option value="all">All Time</option>
+                        <option value="today" selected>Today</option>
+                        <option value="yesterday">Yesterday</option>
+                        <option value="thisWeek">This Week</option>
+                        <option value="thisMonth">This Month</option>
+                        <option value="custom">Custom Range</option>
+                    </select>
+                    <div id="customDateInputs" class="custom-date-inputs" style="display: none;">
+                        <input type="date" id="dashStartDate" onchange="updateDashboard()">
+                        <span>to</span>
+                        <input type="date" id="dashEndDate" onchange="updateDashboard()">
+                    </div>
+                </div>
+            </div>
+
             <div class="dashboard-summary">
-                <div class="summary-card">
-                    <h3>Total Revenue</h3>
+                <div class="summary-card card-revenue">
+                    <div class="card-header-row">
+                        <span class="card-icon-badge">💰</span>
+                        <span class="card-title">Total Revenue</span>
+                    </div>
                     <p class="big-number" id="totalRevenue">Rs. 0</p>
+                    <div class="card-subtext" id="revenueSubtext">Cash: Rs. 0 | Online: Rs. 0</div>
+                    <div class="progress-bar-container">
+                        <div class="progress-bar-fill revenue-bar" id="revenueProgress" style="width: 100%;"></div>
+                    </div>
                 </div>
-                <div class="summary-card">
-                    <h3>Total Profit</h3>
+
+                <div class="summary-card card-profit">
+                    <div class="card-header-row">
+                        <span class="card-icon-badge">📈</span>
+                        <span class="card-title">Net Profit</span>
+                        <span class="margin-badge" id="marginBadge">0% Margin</span>
+                    </div>
                     <p class="big-number profit" id="dashboardProfit">Rs. 0</p>
+                    <div class="card-subtext" id="profitSubtext">Est. Profit Margin</div>
+                    <div class="progress-bar-container">
+                        <div class="progress-bar-fill profit-bar" id="profitProgress" style="width: 0%;"></div>
+                    </div>
                 </div>
-                <div class="summary-card">
-                    <h3>Cash in Hand</h3>
+
+                <div class="summary-card card-cost">
+                    <div class="card-header-row">
+                        <span class="card-icon-badge">🏦</span>
+                        <span class="card-title">Cash in Hand / Cost</span>
+                    </div>
                     <p class="big-number" id="cashInHand">Rs. 0</p>
+                    <div class="card-subtext" id="costSubtext">Product Base Cost: Rs. 0</div>
+                    <div class="progress-bar-container">
+                        <div class="progress-bar-fill cost-bar" id="costProgress" style="width: 0%;"></div>
+                    </div>
                 </div>
-                <div class="summary-card">
-                    <h3>Total Items Sold</h3>
+
+                <div class="summary-card card-bills">
+                    <div class="card-header-row">
+                        <span class="card-icon-badge">🧾</span>
+                        <span class="card-title">Bills Issued</span>
+                    </div>
                     <p class="big-number" id="totalItemsSold">0</p>
+                    <div class="card-subtext" id="avgBillSubtext">Avg Order Value: Rs. 0</div>
+                    <div class="progress-bar-container">
+                        <div class="progress-bar-fill bills-bar" id="billsProgress" style="width: 100%;"></div>
+                    </div>
                 </div>
             </div>
             

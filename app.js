@@ -445,7 +445,7 @@ function updateCart() {
         const itemProfit = itemSale - itemCost;
         
         totalCost += itemCost;
-        totalSale += itemSale;
+        subtotalSale += itemSale;
         
         const div = document.createElement('div');
         div.className = 'cart-item';
@@ -475,11 +475,35 @@ function updateCart() {
         cartItems.appendChild(div);
     });
     
-    const totalProfit = totalSale - totalCost;
+    // Process Discount
+    const discountType = document.getElementById('discountType')?.value || 'fixed';
+    const discountValue = parseFloat(document.getElementById('discountValue')?.value) || 0;
     
+    let discountAmount = 0;
+    if (discountType === 'percentage') {
+        discountAmount = (subtotalSale * Math.min(discountValue, 100)) / 100;
+    } else {
+        discountAmount = Math.min(discountValue, subtotalSale);
+    }
+    
+    const finalSale = Math.max(0, subtotalSale - discountAmount);
+    const totalProfit = finalSale - totalCost;
+    
+    const subtotalEl = document.getElementById('subtotalSale');
+    if (subtotalEl) subtotalEl.textContent = `Rs. ${subtotalSale.toFixed(2)}`;
     document.getElementById('totalCost').textContent = `Rs. ${totalCost.toFixed(2)}`;
-    document.getElementById('totalSale').textContent = `Rs. ${totalSale.toFixed(2)}`;
+    document.getElementById('totalSale').textContent = `Rs. ${finalSale.toFixed(2)}`;
     document.getElementById('totalProfit').textContent = `Rs. ${totalProfit.toFixed(2)}`;
+    
+    const discountRow = document.getElementById('discountRow');
+    if (discountRow) {
+        if (discountAmount > 0) {
+            discountRow.style.display = 'flex';
+            document.getElementById('discountAmountDisplay').textContent = `- Rs. ${discountAmount.toFixed(2)}`;
+        } else {
+            discountRow.style.display = 'none';
+        }
+    }
 }
 
 function clearCart() {
@@ -496,27 +520,52 @@ function generateReceipt() {
         return;
     }
     
+    const discountType = document.getElementById('discountType')?.value || 'fixed';
+    const discountValue = parseFloat(document.getElementById('discountValue')?.value) || 0;
+    const paymentMethod = document.getElementById('paymentMethod')?.value || 'Cash';
+    
+    let subtotalSale = 0;
+    let totalCost = 0;
+    
+    const items = cart.map(item => {
+        const product = products.find(p => p.id === item.productId);
+        const cost = product ? product.costPrice : 0;
+        totalCost += cost * item.quantity;
+        subtotalSale += item.salePrice * item.quantity;
+        return {
+            productId: item.productId,
+            productName: product ? product.name : 'Unknown',
+            categoryId: product ? product.categoryId : null,
+            quantity: item.quantity,
+            costPrice: cost,
+            salePrice: item.salePrice
+        };
+    });
+    
+    let discountAmount = 0;
+    if (discountType === 'percentage') {
+        discountAmount = (subtotalSale * Math.min(discountValue, 100)) / 100;
+    } else {
+        discountAmount = Math.min(discountValue, subtotalSale);
+    }
+    
+    const finalSale = Math.max(0, subtotalSale - discountAmount);
+    const totalProfit = finalSale - totalCost;
+    
     const receipt = {
         id: 'REC-' + Date.now(),
         date: new Date().toISOString(),
         user: currentUser.username,
-        items: cart.map(item => {
-            const product = products.find(p => p.id === item.productId);
-            return {
-                productId: item.productId,
-                productName: product.name,
-                categoryId: product.categoryId,
-                quantity: item.quantity,
-                costPrice: product.costPrice,
-                salePrice: item.salePrice
-            };
-        })
+        paymentMethod: paymentMethod,
+        discountType: discountType,
+        discountValue: discountValue,
+        discountAmount: discountAmount,
+        subtotalSale: subtotalSale,
+        totalCost: totalCost,
+        totalSale: finalSale,
+        totalProfit: totalProfit,
+        items: items
     };
-    
-    // Calculate totals
-    receipt.totalCost = receipt.items.reduce((sum, item) => sum + (item.costPrice * item.quantity), 0);
-    receipt.totalSale = receipt.items.reduce((sum, item) => sum + (item.salePrice * item.quantity), 0);
-    receipt.totalProfit = receipt.totalSale - receipt.totalCost;
     
     // Update product sold counts
     receipt.items.forEach(item => {
@@ -529,12 +578,14 @@ function generateReceipt() {
     receipts.push(receipt);
     saveData();
     
-    // Clear cart
-    cart = [];;
+    // Clear cart & reset discount input
+    cart = [];
+    const discInput = document.getElementById('discountValue');
+    if (discInput) discInput.value = '0';
     updateCart();
     
-    // Show customer receipt (no cost/profit info)
     showCustomerReceipt(receipt);
+    showToast('✓ Receipt Generated Successfully!', 'success');
 }
 
 function showCustomerReceipt(receipt) {
@@ -555,16 +606,29 @@ function showCustomerReceipt(receipt) {
         `;
     });
     
+    let discountHTML = '';
+    if (receipt.discountAmount && receipt.discountAmount > 0) {
+        discountHTML = `
+            <div class="receipt-total-row" style="color: #c0392b;">
+                <span>Discount (${receipt.discountType === 'percentage' ? receipt.discountValue + '%' : 'Fixed'}):</span>
+                <span>- Rs. ${receipt.discountAmount.toFixed(2)}</span>
+            </div>
+        `;
+    }
+    
     receiptContent.innerHTML = `
         <div class="receipt-header-print">
             <h2>Ramz E Takhleeq</h2>
             <p>Receipt #${receipt.id}</p>
             <p>${date.toLocaleDateString()} ${date.toLocaleTimeString()}</p>
+            <p>Payment Method: <strong>${receipt.paymentMethod || 'Cash'}</strong></p>
         </div>
         <div class="receipt-items">
             ${itemsHTML}
         </div>
         <div class="receipt-totals">
+            ${receipt.subtotalSale ? `<div class="receipt-total-row"><span>Subtotal:</span><span>Rs. ${receipt.subtotalSale.toFixed(2)}</span></div>` : ''}
+            ${discountHTML}
             <div class="receipt-total-row grand">
                 <span>Total Amount:</span>
                 <span>Rs. ${receipt.totalSale.toFixed(2)}</span>
@@ -596,12 +660,22 @@ function showReceipt(receipt) {
         `;
     });
     
+    let discountHTML = '';
+    if (receipt.discountAmount && receipt.discountAmount > 0) {
+        discountHTML = `
+            <div class="receipt-total-row" style="color: #c0392b;">
+                <span>Discount (${receipt.discountType === 'percentage' ? receipt.discountValue + '%' : 'Fixed'}):</span>
+                <span>- Rs. ${receipt.discountAmount.toFixed(2)}</span>
+            </div>
+        `;
+    }
+    
     receiptContent.innerHTML = `
         <div class="receipt-header-print">
             <h2>Ramz E Takhleeq</h2>
             <p>Receipt #${receipt.id}</p>
             <p>${date.toLocaleDateString()} ${date.toLocaleTimeString()}</p>
-            <p>Billed by: ${receipt.user}</p>
+            <p>Billed by: ${receipt.user} | Method: <strong>${receipt.paymentMethod || 'Cash'}</strong></p>
         </div>
         <div class="receipt-items">
             ${itemsHTML}
@@ -611,8 +685,10 @@ function showReceipt(receipt) {
                 <span>Total Cost:</span>
                 <span>Rs. ${receipt.totalCost.toFixed(2)}</span>
             </div>
+            ${receipt.subtotalSale ? `<div class="receipt-total-row"><span>Subtotal:</span><span>Rs. ${receipt.subtotalSale.toFixed(2)}</span></div>` : ''}
+            ${discountHTML}
             <div class="receipt-total-row">
-                <span>Total Amount:</span>
+                <span>Total Sale:</span>
                 <span>Rs. ${receipt.totalSale.toFixed(2)}</span>
             </div>
             <div class="receipt-total-row grand">
@@ -656,11 +732,15 @@ function renderReceipts() {
     
     filteredReceipts.forEach(receipt => {
         const date = new Date(receipt.date);
+        const pMethod = receipt.paymentMethod || 'Cash';
+        const badgeClass = pMethod === 'Online' ? 'badge-online' : 'badge-cash';
+        
         const div = document.createElement('div');
         div.className = 'receipt-card';
         div.innerHTML = `
             <div class="receipt-header">
                 <span class="receipt-id">${receipt.id}</span>
+                <span class="${badgeClass}">${pMethod === 'Online' ? '💳 Online' : '💵 Cash'}</span>
                 <span class="receipt-date">${date.toLocaleDateString()} ${date.toLocaleTimeString()}</span>
             </div>
             <div class="receipt-summary">
@@ -718,61 +798,163 @@ function deleteAllReceipts() {
     
     saveData();
     renderReceipts();
-    alert('All receipts have been deleted and sales data has been reset.');
+    showToast('All receipts have been deleted.', 'info');
 }
 
-// Dashboard
-function updateDashboard() {
-    const categoryFilter = document.getElementById('dashboardCategoryFilter').value;
+// Dashboard Date Range Filter Logic
+function handleDatePresetChange() {
+    const preset = document.getElementById('dateRangePreset')?.value || 'all';
+    const customInputs = document.getElementById('customDateInputs');
+    if (customInputs) {
+        customInputs.style.display = preset === 'custom' ? 'flex' : 'none';
+    }
+    updateDashboard();
+}
+
+function getFilteredReceiptsByDate() {
+    const preset = document.getElementById('dateRangePreset')?.value || 'today';
+    const now = new Date();
+    const todayStr = now.toISOString().split('T')[0];
     
-    // Calculate totals from receipts
+    if (preset === 'all') return receipts;
+    
+    if (preset === 'today') {
+        return receipts.filter(r => new Date(r.date).toISOString().split('T')[0] === todayStr);
+    }
+    
+    if (preset === 'yesterday') {
+        const y = new Date(now);
+        y.setDate(y.getDate() - 1);
+        const yStr = y.toISOString().split('T')[0];
+        return receipts.filter(r => new Date(r.date).toISOString().split('T')[0] === yStr);
+    }
+    
+    if (preset === 'thisWeek') {
+        const startOfWeek = new Date(now);
+        const day = startOfWeek.getDay() || 7;
+        startOfWeek.setDate(startOfWeek.getDate() - day + 1);
+        startOfWeek.setHours(0, 0, 0, 0);
+        return receipts.filter(r => new Date(r.date) >= startOfWeek);
+    }
+    
+    if (preset === 'thisMonth') {
+        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        return receipts.filter(r => new Date(r.date) >= startOfMonth);
+    }
+    
+    if (preset === 'custom') {
+        const start = document.getElementById('dashStartDate')?.value;
+        const end = document.getElementById('dashEndDate')?.value;
+        return receipts.filter(r => {
+            const rDate = new Date(r.date).toISOString().split('T')[0];
+            if (start && rDate < start) return false;
+            if (end && rDate > end) return false;
+            return true;
+        });
+    }
+    
+    return receipts;
+}
+
+// Upgraded Dashboard
+function updateDashboard() {
+    const categoryFilter = document.getElementById('dashboardCategoryFilter')?.value || 'all';
+    const dateFilteredReceipts = getFilteredReceiptsByDate();
+    
     let totalRevenue = 0;
     let totalProfit = 0;
     let totalCost = 0;
+    let cashRevenue = 0;
+    let onlineRevenue = 0;
     let totalItemsSold = 0;
     
-    receipts.forEach(receipt => {
+    // Product sold quantities for filtered range
+    const productSoldMap = {};
+    
+    dateFilteredReceipts.forEach(receipt => {
+        const pMethod = receipt.paymentMethod || 'Cash';
+        
+        let receiptItemRevenue = 0;
+        let receiptItemCost = 0;
+        
         receipt.items.forEach(item => {
-            // If filtering by category, only include items from that category
             if (categoryFilter !== 'all') {
                 const product = products.find(p => p.id === item.productId);
-                if (!product || product.categoryId != categoryFilter) {
-                    return; // Skip this item
-                }
+                if (!product || product.categoryId != categoryFilter) return;
             }
             
-            const itemRevenue = item.salePrice * item.quantity;
-            const itemCost = item.costPrice * item.quantity;
-            const itemProfit = itemRevenue - itemCost;
+            const iRev = item.salePrice * item.quantity;
+            const iCost = item.costPrice * item.quantity;
             
-            totalRevenue += itemRevenue;
-            totalCost += itemCost;
-            totalProfit += itemProfit;
+            receiptItemRevenue += iRev;
+            receiptItemCost += iCost;
             totalItemsSold += item.quantity;
+            
+            productSoldMap[item.productId] = (productSoldMap[item.productId] || 0) + item.quantity;
         });
+        
+        // Subtract receipt discount if filtering all categories
+        let finalReceiptRevenue = receiptItemRevenue;
+        if (categoryFilter === 'all' && receipt.discountAmount) {
+            finalReceiptRevenue = Math.max(0, receiptItemRevenue - receipt.discountAmount);
+        }
+        
+        const receiptProfit = finalReceiptRevenue - receiptItemCost;
+        
+        totalRevenue += finalReceiptRevenue;
+        totalCost += receiptItemCost;
+        totalProfit += receiptProfit;
+        
+        if (pMethod === 'Online') {
+            onlineRevenue += finalReceiptRevenue;
+        } else {
+            cashRevenue += finalReceiptRevenue;
+        }
     });
     
-    const cashInHand = totalCost + totalProfit;
+    const marginPct = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;
+    const avgBillValue = dateFilteredReceipts.length > 0 ? totalRevenue / dateFilteredReceipts.length : 0;
     
-    // Update category name in headers
-    const categoryName = categoryFilter === 'all' ? 'All Categories' : categories.find(c => c.id == categoryFilter)?.name || 'Unknown';
-    
+    // Update KPI UI Elements
     document.getElementById('totalRevenue').textContent = `Rs. ${totalRevenue.toFixed(2)}`;
-    document.getElementById('dashboardProfit').textContent = `Rs. ${totalProfit.toFixed(2)}`;
-    document.getElementById('cashInHand').textContent = `Rs. ${cashInHand.toFixed(2)}`;
-    document.getElementById('totalItemsSold').textContent = totalItemsSold;
+    document.getElementById('revenueSubtext').textContent = `Cash: Rs. ${cashRevenue.toFixed(2)} | Online: Rs. ${onlineRevenue.toFixed(2)}`;
     
-    // Product sales breakdown - Only show products that have been sold
-    let filteredProducts = products.filter(p => (p.soldCount || 0) > 0);
+    document.getElementById('dashboardProfit').textContent = `Rs. ${totalProfit.toFixed(2)}`;
+    const marginBadge = document.getElementById('marginBadge');
+    if (marginBadge) marginBadge.textContent = `${marginPct.toFixed(1)}% Margin`;
+    document.getElementById('profitSubtext').textContent = `Est. Profit Margin: ${marginPct.toFixed(1)}%`;
+    
+    document.getElementById('cashInHand').textContent = `Rs. ${totalCost.toFixed(2)}`;
+    document.getElementById('costSubtext').textContent = `Product Base Cost: Rs. ${totalCost.toFixed(2)}`;
+    
+    document.getElementById('totalItemsSold').textContent = dateFilteredReceipts.length;
+    document.getElementById('avgBillSubtext').textContent = `Avg Order: Rs. ${avgBillValue.toFixed(2)} (${totalItemsSold} items)`;
+    
+    // Update progress bars
+    const profitBar = document.getElementById('profitProgress');
+    if (profitBar) profitBar.style.width = `${Math.min(100, Math.max(0, marginPct))}%`;
+    
+    const costBar = document.getElementById('costProgress');
+    if (costBar) {
+        const costPct = totalRevenue > 0 ? (totalCost / totalRevenue) * 100 : 0;
+        costBar.style.width = `${Math.min(100, Math.max(0, costPct))}%`;
+    }
+    
+    // Product sales breakdown table
+    let displayProducts = products.map(p => {
+        const rangeSoldCount = productSoldMap[p.id] || 0;
+        return { ...p, rangeSoldCount };
+    }).filter(p => p.rangeSoldCount > 0);
     
     if (categoryFilter !== 'all') {
-        filteredProducts = filteredProducts.filter(p => p.categoryId == categoryFilter);
+        displayProducts = displayProducts.filter(p => p.categoryId == categoryFilter);
     }
     
     const tableEl = document.getElementById('productSalesTable');
+    if (!tableEl) return;
     
-    if (filteredProducts.length === 0) {
-        tableEl.innerHTML = '<p style="text-align: center; padding: 40px; color: #666;">No products sold yet</p>';
+    if (displayProducts.length === 0) {
+        tableEl.innerHTML = '<p style="text-align: center; padding: 40px; color: #666;">No product sales recorded for this period</p>';
         return;
     }
     
@@ -793,22 +975,22 @@ function updateDashboard() {
             <tbody>
     `;
     
-    filteredProducts.forEach(product => {
+    displayProducts.forEach(product => {
         const category = categories.find(c => c.id === product.categoryId);
         const profitPerItem = product.salePrice - product.costPrice;
-        const revenue = product.soldCount * product.salePrice;
-        const totalProfit = product.soldCount * profitPerItem;
+        const pRevenue = product.salePrice * product.rangeSoldCount;
+        const pProfit = profitPerItem * product.rangeSoldCount;
         
         tableHTML += `
             <tr>
-                <td>${product.name}</td>
+                <td><strong>${product.name}</strong></td>
                 <td>${category ? category.name : 'Unknown'}</td>
                 <td>Rs. ${product.costPrice.toFixed(2)}</td>
                 <td>Rs. ${product.salePrice.toFixed(2)}</td>
-                <td style="color: ${profitPerItem >= 0 ? 'var(--primary-green)' : '#c0392b'}; font-weight: 600;">Rs. ${profitPerItem.toFixed(2)}</td>
-                <td>${product.soldCount}</td>
-                <td>Rs. ${revenue.toFixed(2)}</td>
-                <td style="color: var(--primary-green); font-weight: 600;">Rs. ${totalProfit.toFixed(2)}</td>
+                <td style="color: var(--primary-green); font-weight: 600;">Rs. ${profitPerItem.toFixed(2)}</td>
+                <td><strong>${product.rangeSoldCount}</strong></td>
+                <td>Rs. ${pRevenue.toFixed(2)}</td>
+                <td style="color: var(--primary-green); font-weight: 600;">Rs. ${pProfit.toFixed(2)}</td>
             </tr>
         `;
     });
