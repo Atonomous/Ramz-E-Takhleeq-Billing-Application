@@ -204,9 +204,13 @@
                 </div>
             </div>
             
+            <h3>Category Performance Breakdown</h3>
+            <div id="categorySalesTable" class="data-table" style="margin-bottom: 30px;"></div>
+
             <h3>Product Sales Breakdown</h3>
             <div class="filter-section">
-                <select id="dashboardCategoryFilter" onchange="updateDashboard()">
+                <label for="dashboardCategoryFilter">Filter Products by Category: </label>
+                <select id="dashboardCategoryFilter" onchange="updateDashboard()" style="margin-left: 10px;">
                     <option value="all">All Categories</option>
                 </select>
             </div>

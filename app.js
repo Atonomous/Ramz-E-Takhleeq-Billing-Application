@@ -998,6 +998,71 @@ function updateDashboard() {
         costBar.style.width = `${Math.min(100, Math.max(0, costPct))}%`;
     }
     
+    // Render Category Performance Breakdown Table
+    const catTableEl = document.getElementById('categorySalesTable');
+    if (catTableEl) {
+        const catStatsMap = {};
+        
+        dateFilteredReceipts.forEach(receipt => {
+            receipt.items.forEach(item => {
+                const product = products.find(p => p.id === item.productId);
+                const catId = product ? product.categoryId : (item.categoryId || 'unknown');
+                const cat = categories.find(c => c.id == catId);
+                const catName = cat ? cat.name : 'Uncategorized';
+                
+                if (!catStatsMap[catId]) {
+                    catStatsMap[catId] = { name: catName, qty: 0, revenue: 0, cost: 0, profit: 0 };
+                }
+                
+                const iRev = item.salePrice * item.quantity;
+                const iCost = item.costPrice * item.quantity;
+                const iProfit = iRev - iCost;
+                
+                catStatsMap[catId].qty += item.quantity;
+                catStatsMap[catId].revenue += iRev;
+                catStatsMap[catId].cost += iCost;
+                catStatsMap[catId].profit += iProfit;
+            });
+        });
+        
+        const catList = Object.values(catStatsMap).filter(c => c.qty > 0);
+        if (catList.length === 0) {
+            catTableEl.innerHTML = '<p style="text-align: center; padding: 20px; color: #666;">No category sales recorded for this period</p>';
+        } else {
+            let catHTML = `
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Category</th>
+                            <th>Total Units Sold</th>
+                            <th>Total Revenue</th>
+                            <th>Total Product Cost</th>
+                            <th>Est. Profit</th>
+                            <th>Profit Margin %</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            
+            catList.sort((a, b) => b.revenue - a.revenue).forEach(cat => {
+                const catMargin = cat.revenue > 0 ? (cat.profit / cat.revenue) * 100 : 0;
+                catHTML += `
+                    <tr>
+                        <td><strong>${cat.name}</strong></td>
+                        <td><strong>${cat.qty}</strong></td>
+                        <td>Rs. ${cat.revenue.toFixed(2)}</td>
+                        <td>Rs. ${cat.cost.toFixed(2)}</td>
+                        <td style="color: var(--primary-green); font-weight: 600;">Rs. ${cat.profit.toFixed(2)}</td>
+                        <td><span class="margin-badge">${catMargin.toFixed(1)}%</span></td>
+                    </tr>
+                `;
+            });
+            
+            catHTML += '</tbody></table>';
+            catTableEl.innerHTML = catHTML;
+        }
+    }
+    
     // Product sales breakdown table
     let displayProducts = products.map(p => {
         const rangeSoldCount = productSoldMap[p.id] || 0;
