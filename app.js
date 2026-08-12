@@ -481,10 +481,10 @@ function updateCart() {
     let subtotalSale = 0;
     
     cart.forEach(item => {
-        const product = products.find(p => p.id === item.productId);
+        const product = products.find(p => p.id == item.productId);
         if (!product) return;
         
-        const category = categories.find(c => c.id === product.categoryId);
+        const category = categories.find(c => c.id == product.categoryId);
         const baseUnitSalePrice = product.salePrice;
         const itemDiscountPerUnit = Math.max(0, baseUnitSalePrice - item.salePrice);
         const totalItemCost = product.costPrice * item.quantity;
