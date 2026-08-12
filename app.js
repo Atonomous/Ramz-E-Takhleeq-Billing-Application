@@ -461,24 +461,38 @@ function updateCartItem(productId, field, value) {
     updateCart();
 }
 
+function updateCartItemDiscount(productId, discountOffPerUnit) {
+    const item = cart.find(i => i.productId === productId);
+    if (!item) return;
+    const product = products.find(p => p.id === productId);
+    const baseSalePrice = product ? product.salePrice : item.salePrice;
+    
+    const discPerUnit = Math.max(0, parseFloat(discountOffPerUnit) || 0);
+    item.salePrice = Math.max(0, baseSalePrice - discPerUnit);
+    
+    updateCart();
+}
+
 function updateCart() {
     const cartItems = document.getElementById('cartItems');
     cartItems.innerHTML = '';
     
     let totalCost = 0;
-    let totalSale = 0;
+    let subtotalSale = 0;
     
     cart.forEach(item => {
         const product = products.find(p => p.id === item.productId);
         if (!product) return;
         
         const category = categories.find(c => c.id === product.categoryId);
-        const itemCost = product.costPrice * item.quantity;
-        const itemSale = item.salePrice * item.quantity;
-        const itemProfit = itemSale - itemCost;
+        const baseUnitSalePrice = product.salePrice;
+        const itemDiscountPerUnit = Math.max(0, baseUnitSalePrice - item.salePrice);
+        const totalItemCost = product.costPrice * item.quantity;
+        const totalItemSale = item.salePrice * item.quantity;
+        const totalItemProfit = totalItemSale - totalItemCost;
         
-        totalCost += itemCost;
-        subtotalSale += itemSale;
+        totalCost += totalItemCost;
+        subtotalSale += totalItemSale;
         
         const div = document.createElement('div');
         div.className = 'cart-item';
@@ -489,20 +503,27 @@ function updateCart() {
             </div>
             <div class="cart-item-controls">
                 <div>
-                    <label>Quantity:</label>
+                    <label>Qty:</label>
                     <input type="number" min="1" value="${item.quantity}" 
-                           onchange="updateCartItem(${item.productId}, 'quantity', this.value)">
+                           oninput="updateCartItem(${item.productId}, 'quantity', this.value)">
                 </div>
                 <div>
-                    <label>Sale Price (each):</label>
+                    <label>Sale Price (Rs. / ea):</label>
                     <input type="number" step="0.01" min="0" value="${item.salePrice}" 
-                           onchange="updateCartItem(${item.productId}, 'salePrice', this.value)">
+                           oninput="updateCartItem(${item.productId}, 'salePrice', this.value)">
+                </div>
+                <div>
+                    <label>Disc / Unit (Rs. Off):</label>
+                    <input type="number" step="0.01" min="0" value="${itemDiscountPerUnit > 0 ? itemDiscountPerUnit.toFixed(2) : ''}" 
+                           placeholder="0.00"
+                           oninput="updateCartItemDiscount(${item.productId}, this.value)">
                 </div>
             </div>
             <div class="cart-item-totals">
-                <span>Cost: Rs. ${itemCost.toFixed(2)}</span>
-                <span>Sale: Rs. ${itemSale.toFixed(2)}</span>
-                <span style="color: var(--primary-green); font-weight: 600;">Profit: Rs. ${itemProfit.toFixed(2)}</span>
+                <span>Original: Rs. ${baseUnitSalePrice.toFixed(2)}/ea</span>
+                ${itemDiscountPerUnit > 0 ? `<span class="item-discount-tag">Item Disc: -Rs. ${(itemDiscountPerUnit * item.quantity).toFixed(2)} (${item.quantity} × -Rs. ${itemDiscountPerUnit.toFixed(2)})</span>` : ''}
+                <span>Total Sale: <strong>Rs. ${totalItemSale.toFixed(2)}</strong> (${item.quantity} × Rs. ${item.salePrice.toFixed(2)})</span>
+                <span style="color: var(--primary-green); font-weight: 600;">Profit: Rs. ${totalItemProfit.toFixed(2)}</span>
             </div>
         `;
         cartItems.appendChild(div);
@@ -585,6 +606,9 @@ function generateReceipt() {
     const items = cart.map(item => {
         const product = products.find(p => p.id === item.productId);
         const cost = product ? product.costPrice : 0;
+        const origSale = product ? product.salePrice : item.salePrice;
+        const discPerUnit = Math.max(0, origSale - item.salePrice);
+        
         productBaseCost += cost * item.quantity;
         subtotalSale += item.salePrice * item.quantity;
         return {
@@ -593,6 +617,8 @@ function generateReceipt() {
             categoryId: product ? product.categoryId : null,
             quantity: item.quantity,
             costPrice: cost,
+            originalSalePrice: origSale,
+            discountPerUnit: discPerUnit,
             salePrice: item.salePrice
         };
     });
@@ -653,11 +679,12 @@ function showCustomerReceipt(receipt) {
     let itemsHTML = '';
     receipt.items.forEach(item => {
         const category = categories.find(c => c.id === item.categoryId);
+        const hasDisc = item.discountPerUnit && item.discountPerUnit > 0;
         itemsHTML += `
             <div class="receipt-item-row">
                 <div>
                     <strong>${item.productName}</strong> (${category ? category.name : 'Unknown'})<br>
-                    <small>${item.quantity} x Rs. ${item.salePrice.toFixed(2)}</small>
+                    <small>${item.quantity} x Rs. ${item.salePrice.toFixed(2)}${hasDisc ? ` <span style="color: #c0392b;">(Disc: -Rs. ${item.discountPerUnit.toFixed(2)} ea)</span>` : ''}</small>
                 </div>
                 <div><strong>Rs. ${(item.quantity * item.salePrice).toFixed(2)}</strong></div>
             </div>
