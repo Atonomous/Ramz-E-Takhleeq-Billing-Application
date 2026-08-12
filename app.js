@@ -67,6 +67,17 @@ let receipts = [];
 
 // Initialize App
 function init() {
+    // Restore session immediately if available
+    try {
+        const storedUser = localStorage.getItem('currentUser');
+        if (storedUser) {
+            currentUser = JSON.parse(storedUser);
+            showMainApp();
+        }
+    } catch (e) {
+        console.error('Session restore error:', e);
+    }
+
     loadData().then(() => {
         initializeDefaultData();
         checkAuth();
