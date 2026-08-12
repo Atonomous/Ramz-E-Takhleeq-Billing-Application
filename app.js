@@ -1110,6 +1110,7 @@ function renderProductManagement() {
                 </div>
             </div>
             <div class="item-actions">
+                <button class="btn-secondary" onclick="renameProduct(${product.id})" style="padding: 6px 12px; font-size: 13px; margin-right: 5px;">✏️ Rename</button>
                 <button class="btn-delete" onclick="deleteProduct(${product.id})">Delete</button>
             </div>
         `;
@@ -1277,6 +1278,32 @@ function updateProductPrice(productId, priceType, value) {
     }
     
     renderProducts(); // Update billing page products
+}
+
+function renameProduct(productId) {
+    const product = products.find(p => p.id === productId);
+    if (!product) return;
+    
+    const newName = prompt('Enter new name for product:', product.name);
+    if (newName === null) return; // User cancelled
+    
+    const trimmedName = newName.trim();
+    if (!trimmedName) {
+        showToast('Product name cannot be empty', 'warning');
+        return;
+    }
+    
+    if (trimmedName === product.name) return; // No change
+    
+    const oldName = product.name;
+    product.name = trimmedName;
+    
+    saveData();
+    showToast(`✓ Product renamed to "${trimmedName}"`, 'success');
+    
+    renderProductManagement();
+    renderProducts();
+    updateDashboard();
 }
 
 function deleteProduct(productId) {
