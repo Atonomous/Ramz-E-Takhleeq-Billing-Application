@@ -336,7 +336,7 @@ nav {
 
 .cart-item-controls {
     display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-columns: 80px 1fr 1.4fr;
     gap: 8px;
     margin-bottom: 10px;
 }
@@ -349,16 +349,31 @@ nav {
     margin-bottom: 4px;
 }
 
-.cart-item-controls input {
-    width: 100%;
-    padding: 8px;
+.cart-item-controls input,
+.cart-item-controls select {
+    padding: 7px;
     border: 2px solid var(--border-color);
     border-radius: 4px;
-    font-size: 14px;
+    font-size: 13px;
     background: #ffffff;
 }
 
-.cart-item-controls input:focus {
+.item-discount-inputs {
+    display: flex;
+    gap: 4px;
+}
+
+.item-discount-inputs select {
+    width: 80px;
+    font-weight: 600;
+}
+
+.item-discount-inputs input {
+    flex: 1;
+}
+
+.cart-item-controls input:focus,
+.cart-item-controls select:focus {
     border-color: var(--primary-green);
     outline: none;
 }

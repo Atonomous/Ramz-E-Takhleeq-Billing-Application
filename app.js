@@ -449,27 +449,47 @@ function removeFromCart(productId) {
 }
 
 function updateCartItem(productId, field, value) {
-    const item = cart.find(item => item.productId === productId);
+    const item = cart.find(item => item.productId == productId);
     if (!item) return;
     
     if (field === 'quantity') {
         item.quantity = Math.max(1, parseInt(value) || 1);
     } else if (field === 'salePrice') {
         item.salePrice = Math.max(0, parseFloat(value) || 0);
+        // Sync discountVal
+        const product = products.find(p => p.id == productId);
+        const baseSalePrice = product ? product.salePrice : item.salePrice;
+        item.discountType = 'fixed';
+        item.discountVal = Math.max(0, baseSalePrice - item.salePrice);
     }
     
     updateCart();
 }
 
-function updateCartItemDiscount(productId, discountOffPerUnit) {
-    const item = cart.find(i => i.productId === productId);
+function updateCartItemDiscount(productId, value, discType) {
+    const item = cart.find(i => i.productId == productId);
     if (!item) return;
-    const product = products.find(p => p.id === productId);
+    const product = products.find(p => p.id == productId);
     const baseSalePrice = product ? product.salePrice : item.salePrice;
     
-    const discPerUnit = Math.max(0, parseFloat(discountOffPerUnit) || 0);
-    item.salePrice = Math.max(0, baseSalePrice - discPerUnit);
+    if (discType !== undefined) {
+        item.discountType = discType;
+    }
+    if (value !== undefined) {
+        item.discountVal = Math.max(0, parseFloat(value) || 0);
+    }
     
+    const currentType = item.discountType || 'fixed';
+    const currentVal = item.discountVal || 0;
+    
+    let discPerUnit = 0;
+    if (currentType === 'percent') {
+        discPerUnit = (baseSalePrice * Math.min(currentVal, 100)) / 100;
+    } else {
+        discPerUnit = Math.min(currentVal, baseSalePrice);
+    }
+    
+    item.salePrice = Math.max(0, baseSalePrice - discPerUnit);
     updateCart();
 }
 
@@ -494,6 +514,9 @@ function updateCart() {
         totalCost += totalItemCost;
         subtotalSale += totalItemSale;
         
+        const currentDiscType = item.discountType || 'fixed';
+        const currentDiscVal = item.discountVal !== undefined ? item.discountVal : (itemDiscountPerUnit > 0 ? itemDiscountPerUnit : 0);
+        
         const div = document.createElement('div');
         div.className = 'cart-item';
         div.innerHTML = `
@@ -512,16 +535,22 @@ function updateCart() {
                     <input type="number" step="0.01" min="0" value="${item.salePrice}" 
                            oninput="updateCartItem(${item.productId}, 'salePrice', this.value)">
                 </div>
-                <div>
-                    <label>Disc / Unit (Rs. Off):</label>
-                    <input type="number" step="0.01" min="0" value="${itemDiscountPerUnit > 0 ? itemDiscountPerUnit.toFixed(2) : ''}" 
-                           placeholder="0.00"
-                           oninput="updateCartItemDiscount(${item.productId}, this.value)">
+                <div class="item-discount-group">
+                    <label>Disc / Unit:</label>
+                    <div class="item-discount-inputs">
+                        <select onchange="updateCartItemDiscount(${item.productId}, undefined, this.value)">
+                            <option value="fixed" ${currentDiscType === 'percent' ? '' : 'selected'}>Rs. Off</option>
+                            <option value="percent" ${currentDiscType === 'percent' ? 'selected' : ''}>% Off</option>
+                        </select>
+                        <input type="number" step="0.01" min="0" value="${currentDiscVal > 0 ? currentDiscVal : ''}" 
+                               placeholder="0"
+                               oninput="updateCartItemDiscount(${item.productId}, this.value, undefined)">
+                    </div>
                 </div>
             </div>
             <div class="cart-item-totals">
                 <span>Original: Rs. ${baseUnitSalePrice.toFixed(2)}/ea</span>
-                ${itemDiscountPerUnit > 0 ? `<span class="item-discount-tag">Item Disc: -Rs. ${(itemDiscountPerUnit * item.quantity).toFixed(2)} (${item.quantity} × -Rs. ${itemDiscountPerUnit.toFixed(2)})</span>` : ''}
+                ${itemDiscountPerUnit > 0 ? `<span class="item-discount-tag">Item Disc (${currentDiscType === 'percent' ? currentDiscVal + '%' : 'Fixed'}): -Rs. ${(itemDiscountPerUnit * item.quantity).toFixed(2)} (${item.quantity} × -Rs. ${itemDiscountPerUnit.toFixed(2)})</span>` : ''}
                 <span>Cost: Rs. ${totalItemCost.toFixed(2)}</span>
                 <span>Total Sale: <strong>Rs. ${totalItemSale.toFixed(2)}</strong> (${item.quantity} × Rs. ${item.salePrice.toFixed(2)})</span>
                 <span style="color: var(--primary-green); font-weight: 600;">Profit: Rs. ${totalItemProfit.toFixed(2)}</span>
