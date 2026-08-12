@@ -426,26 +426,28 @@ function renderProducts() {
 
 // Cart Management
 function addToCart(productId) {
-    const product = products.find(p => p.id === productId);
+    const product = products.find(p => p.id == productId);
     if (!product) return;
     
-    const existingItem = cart.find(item => item.productId === productId);
+    const existingItem = cart.find(item => item.productId == productId);
     if (existingItem) {
         existingItem.quantity++;
     } else {
         cart.push({
             productId: productId,
             quantity: 1,
-            salePrice: product.salePrice
+            salePrice: product.salePrice,
+            discountType: 'fixed',
+            discountVal: 0
         });
     }
     
-    updateCart();
+    updateCart(true);
 }
 
 function removeFromCart(productId) {
-    cart = cart.filter(item => item.productId !== productId);
-    updateCart();
+    cart = cart.filter(item => item.productId != productId);
+    updateCart(true);
 }
 
 function updateCartItem(productId, field, value) {
@@ -463,7 +465,7 @@ function updateCartItem(productId, field, value) {
         item.discountVal = Math.max(0, baseSalePrice - item.salePrice);
     }
     
-    updateCart();
+    updateCart(false);
 }
 
 function updateCartItemDiscount(productId, value, discType) {
@@ -490,12 +492,19 @@ function updateCartItemDiscount(productId, value, discType) {
     }
     
     item.salePrice = Math.max(0, baseSalePrice - discPerUnit);
-    updateCart();
+    updateCart(false);
 }
 
-function updateCart() {
+function updateCart(forceRebuild = false) {
     const cartItems = document.getElementById('cartItems');
-    cartItems.innerHTML = '';
+    if (!cartItems) return;
+    
+    const existingRows = cartItems.querySelectorAll('.cart-item');
+    const needsRebuild = forceRebuild || existingRows.length !== cart.length;
+    
+    if (needsRebuild) {
+        cartItems.innerHTML = '';
+    }
     
     let totalCost = 0;
     let subtotalSale = 0;
@@ -517,46 +526,71 @@ function updateCart() {
         const currentDiscType = item.discountType || 'fixed';
         const currentDiscVal = item.discountVal !== undefined ? item.discountVal : (itemDiscountPerUnit > 0 ? itemDiscountPerUnit : 0);
         
-        const div = document.createElement('div');
-        div.className = 'cart-item';
-        div.innerHTML = `
-            <div class="cart-item-header">
-                <span class="cart-item-name">${product.name} (${category ? category.name : 'Unknown'})</span>
-                <button class="cart-item-remove" onclick="removeFromCart(${item.productId})">Remove</button>
-            </div>
-            <div class="cart-item-controls">
-                <div>
-                    <label>Qty:</label>
-                    <input type="number" min="1" value="${item.quantity}" 
-                           oninput="updateCartItem(${item.productId}, 'quantity', this.value)">
+        if (needsRebuild) {
+            const div = document.createElement('div');
+            div.className = 'cart-item';
+            div.id = `cart-item-${item.productId}`;
+            div.innerHTML = `
+                <div class="cart-item-header">
+                    <span class="cart-item-name">${product.name} (${category ? category.name : 'Unknown'})</span>
+                    <button class="cart-item-remove" onclick="removeFromCart(${item.productId})">Remove</button>
                 </div>
-                <div>
-                    <label>Sale Price (Rs. / ea):</label>
-                    <input type="number" step="0.01" min="0" value="${item.salePrice}" 
-                           oninput="updateCartItem(${item.productId}, 'salePrice', this.value)">
-                </div>
-                <div class="item-discount-group">
-                    <label>Disc / Unit:</label>
-                    <div class="item-discount-inputs">
-                        <select onchange="updateCartItemDiscount(${item.productId}, undefined, this.value)">
-                            <option value="fixed" ${currentDiscType === 'percent' ? '' : 'selected'}>Rs. Off</option>
-                            <option value="percent" ${currentDiscType === 'percent' ? 'selected' : ''}>% Off</option>
-                        </select>
-                        <input type="number" step="0.01" min="0" value="${currentDiscVal > 0 ? currentDiscVal : ''}" 
-                               placeholder="0"
-                               oninput="updateCartItemDiscount(${item.productId}, this.value, undefined)">
+                <div class="cart-item-controls">
+                    <div>
+                        <label>Qty:</label>
+                        <input type="number" id="cart-item-qty-${item.productId}" min="1" value="${item.quantity}" 
+                               oninput="updateCartItem(${item.productId}, 'quantity', this.value)">
+                    </div>
+                    <div>
+                        <label>Sale Price (Rs. / ea):</label>
+                        <input type="number" id="cart-item-saleprice-${item.productId}" step="0.01" min="0" value="${item.salePrice}" 
+                               oninput="updateCartItem(${item.productId}, 'salePrice', this.value)">
+                    </div>
+                    <div class="item-discount-group">
+                        <label>Disc / Unit:</label>
+                        <div class="item-discount-inputs">
+                            <select id="cart-item-disctype-${item.productId}" onchange="updateCartItemDiscount(${item.productId}, undefined, this.value)">
+                                <option value="fixed" ${currentDiscType === 'percent' ? '' : 'selected'}>Rs. Off</option>
+                                <option value="percent" ${currentDiscType === 'percent' ? 'selected' : ''}>% Off</option>
+                            </select>
+                            <input type="number" id="cart-item-discval-${item.productId}" step="0.01" min="0" value="${currentDiscVal > 0 ? currentDiscVal : ''}" 
+                                   placeholder="0"
+                                   oninput="updateCartItemDiscount(${item.productId}, this.value, undefined)">
+                        </div>
                     </div>
                 </div>
-            </div>
-            <div class="cart-item-totals">
-                <span>Original: Rs. ${baseUnitSalePrice.toFixed(2)}/ea</span>
-                ${itemDiscountPerUnit > 0 ? `<span class="item-discount-tag">Item Disc (${currentDiscType === 'percent' ? currentDiscVal + '%' : 'Fixed'}): -Rs. ${(itemDiscountPerUnit * item.quantity).toFixed(2)} (${item.quantity} × -Rs. ${itemDiscountPerUnit.toFixed(2)})</span>` : ''}
-                <span>Cost: Rs. ${totalItemCost.toFixed(2)}</span>
-                <span>Total Sale: <strong>Rs. ${totalItemSale.toFixed(2)}</strong> (${item.quantity} × Rs. ${item.salePrice.toFixed(2)})</span>
-                <span style="color: var(--primary-green); font-weight: 600;">Profit: Rs. ${totalItemProfit.toFixed(2)}</span>
-            </div>
-        `;
-        cartItems.appendChild(div);
+                <div class="cart-item-totals" id="cart-item-totals-${item.productId}">
+                    <span>Original: Rs. ${baseUnitSalePrice.toFixed(2)}/ea</span>
+                    ${itemDiscountPerUnit > 0 ? `<span class="item-discount-tag">Item Disc (${currentDiscType === 'percent' ? currentDiscVal + '%' : 'Fixed'}): -Rs. ${(itemDiscountPerUnit * item.quantity).toFixed(2)} (${item.quantity} × -Rs. ${itemDiscountPerUnit.toFixed(2)})</span>` : ''}
+                    <span>Cost: Rs. ${totalItemCost.toFixed(2)}</span>
+                    <span>Total Sale: <strong>Rs. ${totalItemSale.toFixed(2)}</strong> (${item.quantity} × Rs. ${item.salePrice.toFixed(2)})</span>
+                    <span style="color: var(--primary-green); font-weight: 600;">Profit: Rs. ${totalItemProfit.toFixed(2)}</span>
+                </div>
+            `;
+            cartItems.appendChild(div);
+        } else {
+            // Update totals in-place without destroying the active focused input!
+            const totalsDiv = document.getElementById(`cart-item-totals-${item.productId}`);
+            if (totalsDiv) {
+                totalsDiv.innerHTML = `
+                    <span>Original: Rs. ${baseUnitSalePrice.toFixed(2)}/ea</span>
+                    ${itemDiscountPerUnit > 0 ? `<span class="item-discount-tag">Item Disc (${currentDiscType === 'percent' ? currentDiscVal + '%' : 'Fixed'}): -Rs. ${(itemDiscountPerUnit * item.quantity).toFixed(2)} (${item.quantity} × -Rs. ${itemDiscountPerUnit.toFixed(2)})</span>` : ''}
+                    <span>Cost: Rs. ${totalItemCost.toFixed(2)}</span>
+                    <span>Total Sale: <strong>Rs. ${totalItemSale.toFixed(2)}</strong> (${item.quantity} × Rs. ${item.salePrice.toFixed(2)})</span>
+                    <span style="color: var(--primary-green); font-weight: 600;">Profit: Rs. ${totalItemProfit.toFixed(2)}</span>
+                `;
+            }
+            
+            // Sync cross-field inputs only if not currently focused
+            const salePriceInput = document.getElementById(`cart-item-saleprice-${item.productId}`);
+            if (salePriceInput && document.activeElement !== salePriceInput) {
+                salePriceInput.value = item.salePrice;
+            }
+            const discValInput = document.getElementById(`cart-item-discval-${item.productId}`);
+            if (discValInput && document.activeElement !== discValInput) {
+                discValInput.value = currentDiscVal > 0 ? currentDiscVal : '';
+            }
+        }
     });
     
     // Process Discount & Fixed Order Expense
@@ -593,15 +627,21 @@ function updateCart() {
     const fixedCostEl = document.getElementById('fixedCostDisplay');
     if (fixedCostEl) fixedCostEl.textContent = `Rs. ${fixedOrderCost.toFixed(2)}`;
     
-    document.getElementById('totalCost').textContent = `Rs. ${combinedTotalCost.toFixed(2)}`;
-    document.getElementById('totalSale').textContent = `Rs. ${finalSale.toFixed(2)}`;
-    document.getElementById('totalProfit').textContent = `Rs. ${totalProfit.toFixed(2)}`;
+    const totalCostEl = document.getElementById('totalCost');
+    if (totalCostEl) totalCostEl.textContent = `Rs. ${combinedTotalCost.toFixed(2)}`;
+    
+    const totalSaleEl = document.getElementById('totalSale');
+    if (totalSaleEl) totalSaleEl.textContent = `Rs. ${finalSale.toFixed(2)}`;
+    
+    const totalProfitEl = document.getElementById('totalProfit');
+    if (totalProfitEl) totalProfitEl.textContent = `Rs. ${totalProfit.toFixed(2)}`;
     
     const discountRow = document.getElementById('discountRow');
     if (discountRow) {
         if (discountAmount > 0) {
             discountRow.style.display = 'flex';
-            document.getElementById('discountAmountDisplay').textContent = `- Rs. ${discountAmount.toFixed(2)}`;
+            const discDisp = document.getElementById('discountAmountDisplay');
+            if (discDisp) discDisp.textContent = `- Rs. ${discountAmount.toFixed(2)}`;
         } else {
             discountRow.style.display = 'none';
         }
