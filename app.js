@@ -1045,7 +1045,9 @@ function updateDashboard() {
 function renderProductManagement() {
     if (currentUser.role !== 'admin') return;
     
-    // Update category filter
+    // Ensure all category dropdowns (including #productCategory and #productManagementCategoryFilter) are populated!
+    updateCategoryFilters();
+    
     const categoryFilter = document.getElementById('productManagementCategoryFilter');
     if (categoryFilter) {
         const currentValue = categoryFilter.value;
@@ -1200,35 +1202,48 @@ function deleteCategory(categoryId) {
 }
 
 function addProduct() {
-    const categoryId = parseInt(document.getElementById('productCategory').value);
-    const name = document.getElementById('productName').value.trim();
-    const costPrice = parseFloat(document.getElementById('productCost').value) || 0;
-    const salePrice = parseFloat(document.getElementById('productSale').value) || 0;
+    const categorySelect = document.getElementById('productCategory');
+    const categoryIdVal = categorySelect ? categorySelect.value : '';
+    const categoryId = parseInt(categoryIdVal);
+    const nameInput = document.getElementById('productName');
+    const name = nameInput ? nameInput.value.trim() : '';
+    const costPrice = parseFloat(document.getElementById('productCost')?.value) || 0;
+    const salePrice = parseFloat(document.getElementById('productSale')?.value) || 0;
     
-    if (!categoryId || !name) {
-        showToast('Please fill in all fields', 'warning');
+    if (!categoryIdVal || isNaN(categoryId)) {
+        showToast('Please select a Category first!', 'warning');
         return;
     }
     
-    products.push({
+    if (!name) {
+        showToast('Please enter a Product Name!', 'warning');
+        return;
+    }
+    
+    const newProduct = {
         id: Date.now(),
         categoryId: categoryId,
         name: name,
         costPrice: costPrice,
         salePrice: salePrice,
         soldCount: 0
-    });
+    };
     
-    document.getElementById('productCategory').value = '';
-    document.getElementById('productName').value = '';
-    document.getElementById('productCost').value = '';
-    document.getElementById('productSale').value = '';
+    products.push(newProduct);
+    
+    if (categorySelect) categorySelect.value = '';
+    if (nameInput) nameInput.value = '';
+    const costInput = document.getElementById('productCost');
+    if (costInput) costInput.value = '';
+    const saleInput = document.getElementById('productSale');
+    if (saleInput) saleInput.value = '';
     
     saveData();
-    // Force immediate save
-    setTimeout(() => saveData(), 100);
+    showToast(`✓ Product "${name}" added successfully!`, 'success');
+    
     renderProductManagement();
     renderProducts();
+    updateDashboard();
 }
 
 function updateProductPrice(productId, priceType, value) {
