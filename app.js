@@ -1654,3 +1654,10 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 });
+
+// Prevent mouse wheel scrolling from accidentally changing number input values
+document.addEventListener('wheel', function(e) {
+    if (document.activeElement && document.activeElement.tagName === 'INPUT' && document.activeElement.type === 'number') {
+        document.activeElement.blur();
+    }
+}, { passive: true });
