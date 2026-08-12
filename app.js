@@ -522,6 +522,7 @@ function updateCart() {
             <div class="cart-item-totals">
                 <span>Original: Rs. ${baseUnitSalePrice.toFixed(2)}/ea</span>
                 ${itemDiscountPerUnit > 0 ? `<span class="item-discount-tag">Item Disc: -Rs. ${(itemDiscountPerUnit * item.quantity).toFixed(2)} (${item.quantity} × -Rs. ${itemDiscountPerUnit.toFixed(2)})</span>` : ''}
+                <span>Cost: Rs. ${totalItemCost.toFixed(2)}</span>
                 <span>Total Sale: <strong>Rs. ${totalItemSale.toFixed(2)}</strong> (${item.quantity} × Rs. ${item.salePrice.toFixed(2)})</span>
                 <span style="color: var(--primary-green); font-weight: 600;">Profit: Rs. ${totalItemProfit.toFixed(2)}</span>
             </div>
