@@ -865,6 +865,11 @@ function clearDateFilter() {
 }
 
 function deleteAllReceipts() {
+    if (!currentUser || currentUser.role !== 'admin') {
+        showToast('Unauthorized: Admin access required', 'error');
+        return;
+    }
+    
     if (!confirm('Are you sure you want to delete ALL receipt records? This will also reset all product sold counts. This action cannot be undone!')) {
         return;
     }
@@ -1227,6 +1232,10 @@ function renderProductManagement() {
 }
 
 function addCategory() {
+    if (!currentUser || currentUser.role !== 'admin') {
+        showToast('Unauthorized: Admin access required', 'error');
+        return;
+    }
     const name = document.getElementById('newCategoryName').value.trim();
     if (!name) {
         showToast('Please enter a category name', 'warning');
@@ -1246,6 +1255,10 @@ function addCategory() {
 }
 
 function renameCategory(categoryId) {
+    if (!currentUser || currentUser.role !== 'admin') {
+        showToast('Unauthorized: Admin access required', 'error');
+        return;
+    }
     const category = categories.find(c => c.id == categoryId);
     if (!category) return;
     
@@ -1274,6 +1287,10 @@ function renameCategory(categoryId) {
 }
 
 function deleteCategory(categoryId) {
+    if (!currentUser || currentUser.role !== 'admin') {
+        showToast('Unauthorized: Admin access required', 'error');
+        return;
+    }
     const cat = categories.find(c => c.id == categoryId);
     const categoryName = cat ? cat.name : 'Category';
     const productsInCategory = products.filter(p => p.categoryId == categoryId);
@@ -1311,6 +1328,10 @@ function deleteCategory(categoryId) {
 }
 
 function addProduct() {
+    if (!currentUser || currentUser.role !== 'admin') {
+        showToast('Unauthorized: Admin access required', 'error');
+        return;
+    }
     const categorySelect = document.getElementById('productCategory');
     const categoryIdVal = categorySelect ? categorySelect.value : '';
     const categoryId = parseInt(categoryIdVal);
@@ -1356,6 +1377,10 @@ function addProduct() {
 }
 
 function updateProductPrice(productId, priceType, value) {
+    if (!currentUser || currentUser.role !== 'admin') {
+        showToast('Unauthorized: Admin access required', 'error');
+        return;
+    }
     const product = products.find(p => p.id === productId);
     if (!product) return;
     
@@ -1389,6 +1414,10 @@ function updateProductPrice(productId, priceType, value) {
 }
 
 function renameProduct(productId) {
+    if (!currentUser || currentUser.role !== 'admin') {
+        showToast('Unauthorized: Admin access required', 'error');
+        return;
+    }
     const product = products.find(p => p.id === productId);
     if (!product) return;
     
@@ -1415,6 +1444,10 @@ function renameProduct(productId) {
 }
 
 function deleteProduct(productId) {
+    if (!currentUser || currentUser.role !== 'admin') {
+        showToast('Unauthorized: Admin access required', 'error');
+        return;
+    }
     if (!confirm('Are you sure you want to delete this product?')) {
         return;
     }
@@ -1449,6 +1482,10 @@ function exportData() {
 }
 
 function importData(event) {
+    if (!currentUser || currentUser.role !== 'admin') {
+        showToast('Unauthorized: Admin access required', 'error');
+        return;
+    }
     const file = event.target.files[0];
     if (!file) return;
     
