@@ -752,6 +752,18 @@ function generateReceipt() {
         }
     });
     
+    // IMMUTABLE ARCHIVE (Secondary Backup)
+    // 1. Save to a separate append-only Firebase node that cannot be overwritten by saveData()
+    if (isFirebaseEnabled && database) {
+        database.ref('receiptsArchive').push(receipt).catch(console.error);
+    }
+    // 2. Save to a separate localStorage key that isn't cleared by the main app logic
+    try {
+        const localArchive = JSON.parse(localStorage.getItem('receiptsArchive') || '[]');
+        localArchive.push(receipt);
+        localStorage.setItem('receiptsArchive', JSON.stringify(localArchive));
+    } catch (e) { console.error('Local archive save failed', e); }
+    
     // Clear cart & reset discount input
     cart = [];
     const discInput = document.getElementById('discountValue');
