@@ -1159,6 +1159,20 @@ function updateDashboard() {
         });
         
         const catList = Object.values(catStatsMap).filter(c => c.qty > 0);
+        
+        // Find Top Category
+        const topCatEl = document.getElementById('topCategory');
+        const topCatSubEl = document.getElementById('topCategorySubtext');
+        if (catList.length > 0) {
+            const sortedCats = [...catList].sort((a, b) => b.qty - a.qty);
+            const topCat = sortedCats[0];
+            if (topCatEl) topCatEl.textContent = topCat.name;
+            if (topCatSubEl) topCatSubEl.textContent = `${topCat.qty} Units | Rs. ${topCat.revenue.toFixed(2)}`;
+        } else {
+            if (topCatEl) topCatEl.textContent = '-';
+            if (topCatSubEl) topCatSubEl.textContent = '0 Units Sold';
+        }
+        
         if (catList.length === 0) {
             catTableEl.innerHTML = '<p style="text-align: center; padding: 20px; color: #666;">No category sales recorded for this period</p>';
         } else {
@@ -1201,6 +1215,19 @@ function updateDashboard() {
         const rangeSoldCount = productSoldMap[p.id] || 0;
         return { ...p, rangeSoldCount };
     }).filter(p => p.rangeSoldCount > 0);
+    
+    // Find Top Product before filtering by category (or after, depending on preference. Usually overall top is preferred)
+    const topProdEl = document.getElementById('topProduct');
+    const topProdSubEl = document.getElementById('topProductSubtext');
+    if (displayProducts.length > 0) {
+        const sortedProds = [...displayProducts].sort((a, b) => b.rangeSoldCount - a.rangeSoldCount);
+        const topProd = sortedProds[0];
+        if (topProdEl) topProdEl.textContent = topProd.name;
+        if (topProdSubEl) topProdSubEl.textContent = `${topProd.rangeSoldCount} Units Sold`;
+    } else {
+        if (topProdEl) topProdEl.textContent = '-';
+        if (topProdSubEl) topProdSubEl.textContent = '0 Units Sold';
+    }
     
     if (categoryFilter !== 'all') {
         displayProducts = displayProducts.filter(p => p.categoryId == categoryFilter);
