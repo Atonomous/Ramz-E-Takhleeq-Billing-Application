@@ -744,7 +744,13 @@ function generateReceipt() {
     });
     
     receipts.push(receipt);
-    saveData();
+    saveData().then((cloudSaved) => {
+        if (cloudSaved) {
+            showToast('✓ Receipt saved & synced to cloud!', 'success');
+        } else {
+            showToast('✓ Receipt saved locally (cloud sync pending)', 'warning');
+        }
+    });
     
     // Clear cart & reset discount input
     cart = [];
@@ -753,7 +759,6 @@ function generateReceipt() {
     updateCart();
     
     showCustomerReceipt(receipt);
-    showToast('✓ Receipt Generated Successfully!', 'success');
 }
 
 function showCustomerReceipt(receipt) {
@@ -1476,14 +1481,11 @@ function updateProductPrice(productId, priceType, value) {
         product.salePrice = numValue;
     }
     
-    // Save immediately
-    saveData();
-    
-    // Force another save after a delay
-    setTimeout(() => {
-        saveData();
-        console.log('Product price saved:', product.name, priceType, numValue);
-    }, 100);
+    // Save immediately with confirmation
+    saveData().then((cloudSaved) => {
+        const status = cloudSaved ? '☁ Synced' : '💾 Saved locally';
+        console.log(`Product price saved [${status}]:`, product.name, priceType, numValue);
+    });
     
     // Visual feedback that data was saved
     const productRow = document.getElementById(`product-${productId}`);
@@ -1594,7 +1596,9 @@ function importData(event) {
     event.target.value = ''; // Reset file input
 }
 
-// Data Persistence (Offline-First Dual Storage)
+// Data Persistence (Offline-First Dual Storage with Retry)
+let _pendingCloudSync = false; // Tracks if a cloud sync needs to be retried
+
 function saveData(isUserInitiated = false) {
     const data = {
         products: ensureArray(products),
@@ -1611,33 +1615,12 @@ function saveData(isUserInitiated = false) {
         console.log('✓ Data saved locally at', data.lastSaved);
     } catch (error) {
         console.error('✗ localStorage save error:', error);
+        showToast('⚠ Local save failed! Check browser storage.', 'error');
     }
     
-    // 2. Sync to Firebase if enabled
+    // 2. Sync to Firebase if enabled (with automatic retry)
     if (isFirebaseEnabled && database) {
-        return database.ref('billingData').set(data)
-            .then(() => {
-                console.log('✓ Data synced to cloud at', data.lastSaved);
-                updateSyncBadge('synced', '🟢 Cloud Synced', 'All changes saved to cloud database');
-                if (isUserInitiated) {
-                    showToast('✓ Data saved & synced to cloud', 'success');
-                }
-                return true;
-            })
-            .catch((error) => {
-                console.error('✗ Firebase save error:', error);
-                const isPermissionDenied = error && (error.code === 'PERMISSION_DENIED' || (error.message && error.message.includes('permission_denied')));
-                const badgeTitle = isPermissionDenied 
-                    ? 'Cloud permission denied (Firebase rules may be expired). Saved locally.' 
-                    : 'Cloud sync offline. Data is safely saved locally.';
-                
-                updateSyncBadge('local', '🟡 Saved Locally', badgeTitle);
-                
-                if (isUserInitiated) {
-                    showToast('⚠ Cloud sync offline — saved locally', 'warning');
-                }
-                return false;
-            });
+        return _firebaseSaveWithRetry(data, isUserInitiated, 3);
     } else {
         updateSyncBadge('local', '🟡 Local Mode', 'Running in local browser storage mode');
         if (isUserInitiated) {
@@ -1645,6 +1628,47 @@ function saveData(isUserInitiated = false) {
         }
         return Promise.resolve(true);
     }
+}
+
+function _firebaseSaveWithRetry(data, isUserInitiated, retriesLeft) {
+    return database.ref('billingData').set(data)
+        .then(() => {
+            console.log('✓ Data synced to cloud at', data.lastSaved);
+            updateSyncBadge('synced', '🟢 Cloud Synced', 'All changes saved to cloud database');
+            _pendingCloudSync = false;
+            if (isUserInitiated) {
+                showToast('✓ Data saved & synced to cloud', 'success');
+            }
+            return true;
+        })
+        .catch((error) => {
+            console.error(`✗ Firebase save error (retries left: ${retriesLeft}):`, error);
+            
+            if (retriesLeft > 0) {
+                // Retry after a short delay (500ms, 1000ms, 1500ms)
+                const delay = (4 - retriesLeft) * 500;
+                console.log(`↻ Retrying cloud save in ${delay}ms...`);
+                return new Promise(resolve => {
+                    setTimeout(() => {
+                        resolve(_firebaseSaveWithRetry(data, isUserInitiated, retriesLeft - 1));
+                    }, delay);
+                });
+            }
+            
+            // All retries exhausted
+            _pendingCloudSync = true;
+            const isPermissionDenied = error && (error.code === 'PERMISSION_DENIED' || (error.message && error.message.includes('permission_denied')));
+            const badgeTitle = isPermissionDenied 
+                ? 'Cloud permission denied (Firebase rules may be expired). Saved locally.' 
+                : 'Cloud sync offline. Data is safely saved locally.';
+            
+            updateSyncBadge('local', '🟡 Saved Locally', badgeTitle);
+            
+            if (isUserInitiated) {
+                showToast('⚠ Cloud sync failed after 3 attempts — saved locally', 'warning');
+            }
+            return false;
+        });
 }
 
 function loadData() {
@@ -1762,7 +1786,7 @@ window.addEventListener('beforeunload', function(e) {
     saveData();
 });
 
-// Auto-save every 5 seconds
+// Auto-save every 5 seconds (also retries pending cloud syncs)
 setInterval(() => {
     if (dataReady && (products.length > 0 || categories.length > 0 || receipts.length > 0)) {
         saveData();
