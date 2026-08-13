@@ -72,6 +72,7 @@ let cart = [];
 let products = [];
 let categories = [];
 let receipts = [];
+let dataReady = false; // Guard: prevents auto-save from firing before initial data load completes
 
 // Initialize App
 function init() {
@@ -88,6 +89,7 @@ function init() {
 
     loadData().then(() => {
         initializeDefaultData();
+        dataReady = true; // Data fully loaded — safe to auto-save now
         checkAuth();
         
         // Set up real-time sync listener if Firebase is enabled
@@ -251,96 +253,108 @@ function switchTab(tabName) {
     }
 }
 
-// Initialize Default Data
+// Initialize Default Data — ONLY runs on truly first-time setup
+// Uses a persistent 'dataInitialized' flag so defaults are never re-seeded
 function initializeDefaultData() {
-    let seeded = false;
-    if (categories.length === 0) {
-        categories = [
-            { id: 1, name: 'Diaries' },
-            { id: 2, name: 'Pocket Diaries' },
-            { id: 3, name: 'Cards' },
-            { id: 4, name: 'Ramzan Calendar' },
-            { id: 5, name: '2026 Calendars' },
-            { id: 6, name: 'Bookmarks' },
-            { id: 7, name: 'Counters' },
-            { id: 8, name: 'Stickers' },
-            { id: 9, name: 'Crochet' },
-            { id: 10, name: 'Baking' },
-            { id: 11, name: 'Jewelry' }
-        ];
-        seeded = true;
+    // Check persistent flag — if data was ever initialized, never re-seed
+    const wasInitialized = localStorage.getItem('dataInitialized') === 'true';
+    if (wasInitialized) {
+        console.log('✓ Data previously initialized — skipping default seeding');
+        return;
     }
     
-    if (products.length === 0) {
-        products = [
-            // Diaries
-            ...Array.from({ length: 12 }, (_, i) => ({
-                id: Date.now() + i,
-                categoryId: 1,
-                name: `A5-${String(i + 1).padStart(3, '0')}`,
-                costPrice: 350,
-                salePrice: 600,
-                soldCount: 0
-            })),
-            // Pocket Diaries
-            ...Array.from({ length: 12 }, (_, i) => ({
-                id: Date.now() + 50 + i,
-                categoryId: 2,
-                name: `PD-${String(i + 1).padStart(3, '0')}`,
-                costPrice: 60,
-                salePrice: 150,
-                soldCount: 0
-            })),
-            // Cards
-            { id: Date.now() + 100, categoryId: 3, name: 'Small', costPrice: 0, salePrice: 0, soldCount: 0 },
-            { id: Date.now() + 101, categoryId: 3, name: 'Medium', costPrice: 0, salePrice: 0, soldCount: 0 },
-            { id: Date.now() + 102, categoryId: 3, name: 'Large', costPrice: 0, salePrice: 0, soldCount: 0 },
-            { id: Date.now() + 103, categoryId: 3, name: 'XL', costPrice: 0, salePrice: 0, soldCount: 0 },
-            { id: Date.now() + 104, categoryId: 3, name: 'XXL', costPrice: 0, salePrice: 0, soldCount: 0 },
-            // Ramzan Calendar
-            { id: Date.now() + 200, categoryId: 4, name: 'A4', costPrice: 70, salePrice: 150, soldCount: 0 },
-            { id: Date.now() + 201, categoryId: 4, name: 'Small without stand', costPrice: 25, salePrice: 100, soldCount: 0 },
-            { id: Date.now() + 202, categoryId: 4, name: 'Small with stand', costPrice: 155, salePrice: 350, soldCount: 0 },
-            // 2026 Calendars
-            ...Array.from({ length: 10 }, (_, i) => ({
-                id: Date.now() + 300 + i,
-                categoryId: 5,
-                name: `DC-${String(i + 1).padStart(3, '0')}`,
-                costPrice: 450,
-                salePrice: 1000,
-                soldCount: 0
-            })),
-            // Bookmarks
-            { id: Date.now() + 400, categoryId: 6, name: 'Printed', costPrice: 0, salePrice: 0, soldCount: 0 },
-            { id: Date.now() + 401, categoryId: 6, name: 'Hand made', costPrice: 0, salePrice: 0, soldCount: 0 },
-            { id: Date.now() + 402, categoryId: 6, name: 'Ramzan Juz Tracker', costPrice: 0, salePrice: 0, soldCount: 0 },
-            // Counters
-            { id: Date.now() + 450, categoryId: 7, name: 'Universal', costPrice: 0, salePrice: 0, soldCount: 0 },
-            // Stickers
-            { id: Date.now() + 460, categoryId: 8, name: 'Universal', costPrice: 0, salePrice: 0, soldCount: 0 },
-            // Crochet items
-            { id: Date.now() + 500, categoryId: 9, name: 'Bandana Type 1', costPrice: 0, salePrice: 0, soldCount: 0 },
-            { id: Date.now() + 501, categoryId: 9, name: 'Bandana Type 2', costPrice: 0, salePrice: 0, soldCount: 0 },
-            { id: Date.now() + 502, categoryId: 9, name: 'Bandana Type 3', costPrice: 0, salePrice: 0, soldCount: 0 },
-            { id: Date.now() + 503, categoryId: 9, name: 'Head Band', costPrice: 0, salePrice: 0, soldCount: 0 },
-            { id: Date.now() + 504, categoryId: 9, name: 'Gloves Type 1', costPrice: 0, salePrice: 0, soldCount: 0 },
-            { id: Date.now() + 505, categoryId: 9, name: 'Gloves Type 2', costPrice: 0, salePrice: 0, soldCount: 0 },
-            { id: Date.now() + 506, categoryId: 9, name: 'Gloves Type 3', costPrice: 0, salePrice: 0, soldCount: 0 },
-            { id: Date.now() + 507, categoryId: 9, name: 'Wallet', costPrice: 0, salePrice: 0, soldCount: 0 },
-            { id: Date.now() + 508, categoryId: 9, name: 'Keychain Type 1', costPrice: 0, salePrice: 0, soldCount: 0 },
-            { id: Date.now() + 509, categoryId: 9, name: 'Keychain Type 2', costPrice: 0, salePrice: 0, soldCount: 0 },
-            { id: Date.now() + 510, categoryId: 9, name: 'Keychain Type 3', costPrice: 0, salePrice: 0, soldCount: 0 },
-            // Baking
-            { id: Date.now() + 600, categoryId: 10, name: 'Universal', costPrice: 0, salePrice: 0, soldCount: 0 },
-            // Jewelry
-            { id: Date.now() + 700, categoryId: 11, name: 'Universal', costPrice: 0, salePrice: 0, soldCount: 0 }
-        ];
-        seeded = true;
+    // Only seed if BOTH categories AND products are empty (truly fresh install)
+    if (categories.length > 0 || products.length > 0 || receipts.length > 0) {
+        // Data exists (loaded from cloud or localStorage) — mark as initialized and skip
+        localStorage.setItem('dataInitialized', 'true');
+        console.log('✓ Existing data found — marked as initialized, skipping defaults');
+        return;
     }
     
-    if (seeded) {
-        saveData();
-    }
+    console.log('⚙ First-time setup: seeding default categories and products');
+    
+    categories = [
+        { id: 1, name: 'Diaries' },
+        { id: 2, name: 'Pocket Diaries' },
+        { id: 3, name: 'Cards' },
+        { id: 4, name: 'Ramzan Calendar' },
+        { id: 5, name: '2026 Calendars' },
+        { id: 6, name: 'Bookmarks' },
+        { id: 7, name: 'Counters' },
+        { id: 8, name: 'Stickers' },
+        { id: 9, name: 'Crochet' },
+        { id: 10, name: 'Baking' },
+        { id: 11, name: 'Jewelry' }
+    ];
+    
+    products = [
+        // Diaries
+        ...Array.from({ length: 12 }, (_, i) => ({
+            id: Date.now() + i,
+            categoryId: 1,
+            name: `A5-${String(i + 1).padStart(3, '0')}`,
+            costPrice: 350,
+            salePrice: 600,
+            soldCount: 0
+        })),
+        // Pocket Diaries
+        ...Array.from({ length: 12 }, (_, i) => ({
+            id: Date.now() + 50 + i,
+            categoryId: 2,
+            name: `PD-${String(i + 1).padStart(3, '0')}`,
+            costPrice: 60,
+            salePrice: 150,
+            soldCount: 0
+        })),
+        // Cards
+        { id: Date.now() + 100, categoryId: 3, name: 'Small', costPrice: 0, salePrice: 0, soldCount: 0 },
+        { id: Date.now() + 101, categoryId: 3, name: 'Medium', costPrice: 0, salePrice: 0, soldCount: 0 },
+        { id: Date.now() + 102, categoryId: 3, name: 'Large', costPrice: 0, salePrice: 0, soldCount: 0 },
+        { id: Date.now() + 103, categoryId: 3, name: 'XL', costPrice: 0, salePrice: 0, soldCount: 0 },
+        { id: Date.now() + 104, categoryId: 3, name: 'XXL', costPrice: 0, salePrice: 0, soldCount: 0 },
+        // Ramzan Calendar
+        { id: Date.now() + 200, categoryId: 4, name: 'A4', costPrice: 70, salePrice: 150, soldCount: 0 },
+        { id: Date.now() + 201, categoryId: 4, name: 'Small without stand', costPrice: 25, salePrice: 100, soldCount: 0 },
+        { id: Date.now() + 202, categoryId: 4, name: 'Small with stand', costPrice: 155, salePrice: 350, soldCount: 0 },
+        // 2026 Calendars
+        ...Array.from({ length: 10 }, (_, i) => ({
+            id: Date.now() + 300 + i,
+            categoryId: 5,
+            name: `DC-${String(i + 1).padStart(3, '0')}`,
+            costPrice: 450,
+            salePrice: 1000,
+            soldCount: 0
+        })),
+        // Bookmarks
+        { id: Date.now() + 400, categoryId: 6, name: 'Printed', costPrice: 0, salePrice: 0, soldCount: 0 },
+        { id: Date.now() + 401, categoryId: 6, name: 'Hand made', costPrice: 0, salePrice: 0, soldCount: 0 },
+        { id: Date.now() + 402, categoryId: 6, name: 'Ramzan Juz Tracker', costPrice: 0, salePrice: 0, soldCount: 0 },
+        // Counters
+        { id: Date.now() + 450, categoryId: 7, name: 'Universal', costPrice: 0, salePrice: 0, soldCount: 0 },
+        // Stickers
+        { id: Date.now() + 460, categoryId: 8, name: 'Universal', costPrice: 0, salePrice: 0, soldCount: 0 },
+        // Crochet items
+        { id: Date.now() + 500, categoryId: 9, name: 'Bandana Type 1', costPrice: 0, salePrice: 0, soldCount: 0 },
+        { id: Date.now() + 501, categoryId: 9, name: 'Bandana Type 2', costPrice: 0, salePrice: 0, soldCount: 0 },
+        { id: Date.now() + 502, categoryId: 9, name: 'Bandana Type 3', costPrice: 0, salePrice: 0, soldCount: 0 },
+        { id: Date.now() + 503, categoryId: 9, name: 'Head Band', costPrice: 0, salePrice: 0, soldCount: 0 },
+        { id: Date.now() + 504, categoryId: 9, name: 'Gloves Type 1', costPrice: 0, salePrice: 0, soldCount: 0 },
+        { id: Date.now() + 505, categoryId: 9, name: 'Gloves Type 2', costPrice: 0, salePrice: 0, soldCount: 0 },
+        { id: Date.now() + 506, categoryId: 9, name: 'Gloves Type 3', costPrice: 0, salePrice: 0, soldCount: 0 },
+        { id: Date.now() + 507, categoryId: 9, name: 'Wallet', costPrice: 0, salePrice: 0, soldCount: 0 },
+        { id: Date.now() + 508, categoryId: 9, name: 'Keychain Type 1', costPrice: 0, salePrice: 0, soldCount: 0 },
+        { id: Date.now() + 509, categoryId: 9, name: 'Keychain Type 2', costPrice: 0, salePrice: 0, soldCount: 0 },
+        { id: Date.now() + 510, categoryId: 9, name: 'Keychain Type 3', costPrice: 0, salePrice: 0, soldCount: 0 },
+        // Baking
+        { id: Date.now() + 600, categoryId: 10, name: 'Universal', costPrice: 0, salePrice: 0, soldCount: 0 },
+        // Jewelry
+        { id: Date.now() + 700, categoryId: 11, name: 'Universal', costPrice: 0, salePrice: 0, soldCount: 0 }
+    ];
+    
+    // Mark as initialized so this never runs again
+    localStorage.setItem('dataInitialized', 'true');
+    saveData();
+    console.log('✓ Default data seeded and saved — this will not run again');
 }
 
 // Product Display and Filtering
@@ -1586,6 +1600,7 @@ function saveData(isUserInitiated = false) {
         products: ensureArray(products),
         categories: ensureArray(categories),
         receipts: ensureArray(receipts),
+        dataInitialized: true,
         lastSaved: new Date().toISOString()
     };
     
@@ -1652,6 +1667,10 @@ function loadData() {
                     products = ensureArray(data.products);
                     categories = ensureArray(data.categories);
                     receipts = ensureArray(data.receipts);
+                    // If cloud knows data was initialized, mark locally too
+                    if (data.dataInitialized) {
+                        localStorage.setItem('dataInitialized', 'true');
+                    }
                     console.log('✓ Data loaded from CLOUD - Products:', products.length, 'Categories:', categories.length, 'Receipts:', receipts.length);
                     updateSyncBadge('synced', '🟢 Cloud Synced', 'Connected to cloud database');
                     updateCategoryFilters();
@@ -1745,7 +1764,7 @@ window.addEventListener('beforeunload', function(e) {
 
 // Auto-save every 5 seconds
 setInterval(() => {
-    if (products.length > 0 || categories.length > 0 || receipts.length > 0) {
+    if (dataReady && (products.length > 0 || categories.length > 0 || receipts.length > 0)) {
         saveData();
     }
 }, 5000);
