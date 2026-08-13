@@ -679,6 +679,7 @@ function generateReceipt() {
     const discountType = document.getElementById('discountType')?.value || 'fixed';
     const discountValue = parseFloat(document.getElementById('discountValue')?.value) || 0;
     const paymentMethod = document.getElementById('paymentMethod')?.value || 'Cash';
+    const customerName = document.getElementById('customerName')?.value.trim() || '';
     
     const fixedOrderCostInput = document.getElementById('fixedOrderCost');
     let fixedOrderCost = parseFloat(fixedOrderCostInput?.value);
@@ -722,6 +723,7 @@ function generateReceipt() {
         id: 'REC-' + Date.now(),
         date: new Date().toISOString(),
         user: currentUser.username,
+        customerName: customerName,
         paymentMethod: paymentMethod,
         discountType: discountType,
         discountValue: discountValue,
@@ -764,10 +766,13 @@ function generateReceipt() {
         localStorage.setItem('receiptsArchive', JSON.stringify(localArchive));
     } catch (e) { console.error('Local archive save failed', e); }
     
-    // Clear cart & reset discount input
+    // Clear cart & reset inputs
     cart = [];
     const discInput = document.getElementById('discountValue');
     if (discInput) discInput.value = '0';
+    const custInput = document.getElementById('customerName');
+    if (custInput) custInput.value = '';
+    
     updateCart();
     
     showCustomerReceipt(receipt);
@@ -901,14 +906,38 @@ function closeReceiptModal() {
 // Receipt History
 function renderReceipts() {
     const receiptsList = document.getElementById('receiptsList');
-    const dateFilter = document.getElementById('dateFilter').value;
+    const dateFilter = document.getElementById('dateFilter')?.value;
+    const searchBillNo = document.getElementById('searchBillNo')?.value.toLowerCase().trim();
+    const searchCustomer = document.getElementById('searchCustomer')?.value.toLowerCase().trim();
+    const searchCategory = document.getElementById('searchCategory')?.value;
+    const searchTotal = document.getElementById('searchTotal')?.value;
     
     let filteredReceipts = receipts;
+    
     if (dateFilter) {
-        filteredReceipts = receipts.filter(receipt => {
+        filteredReceipts = filteredReceipts.filter(receipt => {
             const receiptDate = new Date(receipt.date).toISOString().split('T')[0];
             return receiptDate === dateFilter;
         });
+    }
+    
+    if (searchBillNo) {
+        filteredReceipts = filteredReceipts.filter(r => r.id.toLowerCase().includes(searchBillNo));
+    }
+    
+    if (searchCustomer) {
+        filteredReceipts = filteredReceipts.filter(r => (r.customerName || '').toLowerCase().includes(searchCustomer));
+    }
+    
+    if (searchTotal) {
+        const targetTotal = parseFloat(searchTotal);
+        if (!isNaN(targetTotal)) {
+            filteredReceipts = filteredReceipts.filter(r => r.totalSale === targetTotal);
+        }
+    }
+    
+    if (searchCategory && searchCategory !== 'all') {
+        filteredReceipts = filteredReceipts.filter(r => r.items.some(item => item.categoryId == searchCategory));
     }
     
     receiptsList.innerHTML = '';
@@ -920,6 +949,11 @@ function renderReceipts() {
         const date = new Date(receipt.date);
         const pMethod = receipt.paymentMethod || 'Cash';
         const badgeClass = pMethod === 'Online' ? 'badge-online' : 'badge-cash';
+        const customerDisplay = receipt.customerName ? `<span class="badge-customer">👤 ${receipt.customerName}</span>` : '';
+        const refundStatus = receipt.refundStatus || 'Not Refunded';
+        let refundBadgeClass = 'badge-success';
+        if (refundStatus === 'Fully Refunded') refundBadgeClass = 'badge-danger';
+        else if (refundStatus === 'Partially Refunded') refundBadgeClass = 'badge-warning';
         
         const div = document.createElement('div');
         div.className = 'receipt-card';
@@ -927,6 +961,8 @@ function renderReceipts() {
             <div class="receipt-header">
                 <span class="receipt-id">${receipt.id}</span>
                 <span class="${badgeClass}">${pMethod === 'Online' ? '💳 Online' : '💵 Cash'}</span>
+                ${customerDisplay}
+                <span class="${refundBadgeClass}">${refundStatus}</span>
                 <span class="receipt-date">${date.toLocaleDateString()} ${date.toLocaleTimeString()}</span>
             </div>
             <div class="receipt-summary">
@@ -943,9 +979,12 @@ function renderReceipts() {
                     <strong style="color: var(--primary-green);">Rs. ${receipt.totalProfit.toFixed(2)}</strong>
                 </div>
             </div>
-            <div style="display: flex; gap: 10px; margin-top: 10px;">
-                <button onclick="showReceipt(receipts.find(r => r.id === '${receipt.id}'))" class="btn-secondary" style="flex: 1; padding: 8px;">View Full Details</button>
-                <button onclick="showCustomerReceipt(receipts.find(r => r.id === '${receipt.id}'))" class="btn-primary" style="flex: 1; padding: 8px;">Customer Receipt</button>
+            <div style="display: flex; gap: 5px; margin-top: 10px; flex-wrap: wrap;">
+                <button onclick="showReceipt(receipts.find(r => r.id === '${receipt.id}'))" class="btn-secondary" style="flex: 1; padding: 6px;">View</button>
+                <button onclick="showCustomerReceipt(receipts.find(r => r.id === '${receipt.id}'))" class="btn-primary" style="flex: 1; padding: 6px;">Print</button>
+                <button onclick="openEditReceiptModal('${receipt.id}')" class="btn-warning" style="flex: 1; padding: 6px; background: #ffc107; color: #000;">Edit</button>
+                <button onclick="openRefundModal('${receipt.id}')" class="btn-warning" style="flex: 1; padding: 6px; background: #fd7e14; color: #fff;" ${refundStatus === 'Fully Refunded' ? 'disabled title="Already Refunded"' : ''}>Refund</button>
+                <button onclick="deleteReceipt('${receipt.id}')" class="btn-delete" style="flex: 1; padding: 6px;">Delete</button>
             </div>
         `;
         receiptsList.appendChild(div);
@@ -1850,3 +1889,279 @@ document.addEventListener('wheel', function(e) {
         document.activeElement.blur();
     }
 }, { passive: true });
+
+// --- Receipt Management Modals & Functions ---
+
+// 1. Delete Receipt
+let receiptToDelete = null;
+
+function deleteReceipt(id) {
+    if (!currentUser || currentUser.role !== 'admin') {
+        showToast('Unauthorized: Admin access required', 'error');
+        return;
+    }
+    receiptToDelete = id;
+    const textEl = document.getElementById('deleteModalText');
+    if (textEl) textEl.textContent = `Are you sure you want to permanently delete receipt ${id}?`;
+    document.getElementById('deleteModal').classList.add('active');
+}
+
+function closeDeleteModal() {
+    receiptToDelete = null;
+    document.getElementById('deleteModal').classList.remove('active');
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('confirmDeleteBtn')?.addEventListener('click', function() {
+        if (!receiptToDelete) return;
+        
+        // Find index and delete
+        const index = receipts.findIndex(r => r.id === receiptToDelete);
+        if (index !== -1) {
+            receipts.splice(index, 1);
+            saveData();
+            renderReceipts();
+            showToast(`Receipt ${receiptToDelete} deleted successfully.`, 'success');
+        }
+        closeDeleteModal();
+    });
+});
+
+// 2. Edit Receipt
+let editingReceipt = null;
+
+function openEditReceiptModal(id) {
+    if (!currentUser || currentUser.role !== 'admin') {
+        showToast('Unauthorized: Admin access required', 'error');
+        return;
+    }
+    
+    editingReceipt = JSON.parse(JSON.stringify(receipts.find(r => r.id === id)));
+    if (!editingReceipt) return;
+    
+    document.getElementById('editReceiptIdTitle').textContent = editingReceipt.id;
+    document.getElementById('editCustomerName').value = editingReceipt.customerName || '';
+    
+    renderEditItems();
+    
+    document.getElementById('editOriginalTotal').textContent = `Rs. ${editingReceipt.totalSale.toFixed(2)}`;
+    document.getElementById('editReceiptModal').classList.add('active');
+}
+
+function closeEditModal() {
+    editingReceipt = null;
+    document.getElementById('editReceiptModal').classList.remove('active');
+}
+
+function renderEditItems() {
+    const container = document.getElementById('editReceiptItems');
+    let html = '';
+    
+    editingReceipt.items.forEach((item, index) => {
+        html += `
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px; padding: 10px; background: #f9f9f9; border-radius: 6px;">
+                <div style="flex: 2;"><strong>${item.productName}</strong></div>
+                <div style="flex: 1;">
+                    <label style="font-size: 0.8rem;">Qty:</label>
+                    <input type="number" min="0" value="${item.quantity}" onchange="updateEditItem(${index}, 'quantity', this.value)" style="width: 60px;">
+                </div>
+                <div style="flex: 1;">
+                    <label style="font-size: 0.8rem;">Price (Rs):</label>
+                    <input type="number" min="0" value="${item.salePrice}" onchange="updateEditItem(${index}, 'salePrice', this.value)" style="width: 80px;">
+                </div>
+            </div>
+        `;
+    });
+    
+    container.innerHTML = html;
+    updateEditTotals();
+}
+
+function updateEditItem(index, field, value) {
+    let num = parseFloat(value);
+    if (isNaN(num) || num < 0) num = 0;
+    
+    editingReceipt.items[index][field] = num;
+    updateEditTotals();
+}
+
+function updateEditTotals() {
+    let subtotalSale = 0;
+    let productBaseCost = 0;
+    
+    editingReceipt.items.forEach(item => {
+        productBaseCost += item.costPrice * item.quantity;
+        subtotalSale += item.salePrice * item.quantity;
+    });
+    
+    editingReceipt.productBaseCost = productBaseCost;
+    editingReceipt.subtotalSale = subtotalSale;
+    
+    let discountAmount = 0;
+    if (editingReceipt.discountType === 'percentage') {
+        discountAmount = (subtotalSale * Math.min(editingReceipt.discountValue, 100)) / 100;
+    } else {
+        discountAmount = Math.min(editingReceipt.discountValue, subtotalSale);
+    }
+    
+    editingReceipt.discountAmount = discountAmount;
+    const combinedTotalCost = productBaseCost + (editingReceipt.fixedOrderCost || 0);
+    const finalSale = Math.max(0, subtotalSale - discountAmount);
+    
+    editingReceipt.totalCost = combinedTotalCost;
+    editingReceipt.totalSale = finalSale;
+    editingReceipt.totalProfit = finalSale - combinedTotalCost;
+    
+    document.getElementById('editNewTotal').textContent = `Rs. ${finalSale.toFixed(2)}`;
+}
+
+document.getElementById('saveEditBtn')?.addEventListener('click', function() {
+    if (!editingReceipt) return;
+    
+    editingReceipt.customerName = document.getElementById('editCustomerName').value.trim();
+    
+    const index = receipts.findIndex(r => r.id === editingReceipt.id);
+    if (index !== -1) {
+        receipts[index] = editingReceipt;
+        
+        // Push updated receipt to immutable archive
+        if (typeof database !== 'undefined') {
+            database.ref('receiptsArchive').push(editingReceipt).catch(e => console.error(e));
+        }
+        
+        saveData();
+        renderReceipts();
+        showToast('Receipt updated successfully', 'success');
+    }
+    
+    closeEditModal();
+});
+
+// 3. Refund Receipt
+let refundingReceipt = null;
+
+function openRefundModal(id) {
+    if (!currentUser || currentUser.role !== 'admin') {
+        showToast('Unauthorized: Admin access required', 'error');
+        return;
+    }
+    
+    refundingReceipt = JSON.parse(JSON.stringify(receipts.find(r => r.id === id)));
+    if (!refundingReceipt) return;
+    
+    document.getElementById('refundReceiptIdTitle').textContent = refundingReceipt.id;
+    
+    const container = document.getElementById('refundItemsList');
+    let html = '';
+    
+    if (!refundingReceipt.refundedItems) {
+        refundingReceipt.refundedItems = {};
+    }
+    
+    refundingReceipt.items.forEach((item, index) => {
+        const previouslyRefunded = refundingReceipt.refundedItems[item.productId] || 0;
+        const maxRefundable = item.quantity - previouslyRefunded;
+        
+        html += `
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px; padding: 10px; background: #fff3cd; border-radius: 6px;">
+                <div style="flex: 2;"><strong>${item.productName}</strong><br><small style="color:#666;">Sold: ${item.quantity} | Refunded: ${previouslyRefunded}</small></div>
+                <div style="flex: 1;">
+                    <label style="font-size: 0.8rem;">Refund Qty:</label>
+                    <input type="number" min="0" max="${maxRefundable}" value="0" id="refundQty_${index}" onchange="updateRefundTotal()" style="width: 60px;" ${maxRefundable === 0 ? 'disabled' : ''}>
+                </div>
+            </div>
+        `;
+    });
+    
+    container.innerHTML = html;
+    updateRefundTotal();
+    
+    document.getElementById('refundModal').classList.add('active');
+}
+
+function closeRefundModal() {
+    refundingReceipt = null;
+    document.getElementById('refundModal').classList.remove('active');
+}
+
+function updateRefundTotal() {
+    let totalRefundAmount = 0;
+    
+    refundingReceipt.items.forEach((item, index) => {
+        const input = document.getElementById(`refundQty_${index}`);
+        if (!input) return;
+        
+        let qtyToRefund = parseInt(input.value) || 0;
+        const previouslyRefunded = refundingReceipt.refundedItems[item.productId] || 0;
+        const maxRefundable = item.quantity - previouslyRefunded;
+        
+        if (qtyToRefund > maxRefundable) {
+            qtyToRefund = maxRefundable;
+            input.value = maxRefundable;
+        }
+        if (qtyToRefund < 0) {
+            qtyToRefund = 0;
+            input.value = 0;
+        }
+        
+        totalRefundAmount += qtyToRefund * item.salePrice;
+    });
+    
+    document.getElementById('refundTotalAmount').textContent = `Rs. ${totalRefundAmount.toFixed(2)}`;
+}
+
+document.getElementById('confirmRefundBtn')?.addEventListener('click', function() {
+    if (!refundingReceipt) return;
+    
+    let totalRefundAmount = 0;
+    let anyRefunded = false;
+    
+    refundingReceipt.items.forEach((item, index) => {
+        const input = document.getElementById(`refundQty_${index}`);
+        let qtyToRefund = parseInt(input?.value) || 0;
+        
+        if (qtyToRefund > 0) {
+            refundingReceipt.refundedItems[item.productId] = (refundingReceipt.refundedItems[item.productId] || 0) + qtyToRefund;
+            totalRefundAmount += qtyToRefund * item.salePrice;
+            anyRefunded = true;
+        }
+    });
+    
+    if (!anyRefunded) {
+        showToast('No items selected for refund', 'warning');
+        return;
+    }
+    
+    // Determine overall refund status
+    let totalOriginalQty = 0;
+    let totalRefundedQty = 0;
+    
+    refundingReceipt.items.forEach(item => {
+        totalOriginalQty += item.quantity;
+        totalRefundedQty += (refundingReceipt.refundedItems[item.productId] || 0);
+    });
+    
+    if (totalRefundedQty >= totalOriginalQty) {
+        refundingReceipt.refundStatus = 'Fully Refunded';
+    } else {
+        refundingReceipt.refundStatus = 'Partially Refunded';
+    }
+    
+    refundingReceipt.totalRefundedAmount = (refundingReceipt.totalRefundedAmount || 0) + totalRefundAmount;
+    
+    const index = receipts.findIndex(r => r.id === refundingReceipt.id);
+    if (index !== -1) {
+        receipts[index] = refundingReceipt;
+        
+        if (typeof database !== 'undefined') {
+            database.ref('receiptsArchive').push(refundingReceipt).catch(e => console.error(e));
+        }
+        
+        saveData();
+        renderReceipts();
+        showToast(`Refund processed successfully for Rs. ${totalRefundAmount.toFixed(2)}`, 'success');
+    }
+    
+    closeRefundModal();
+});
+

@@ -115,6 +115,10 @@
                             <span>Est. Profit:</span>
                             <span id="totalProfit">Rs. 0</span>
                         </div>
+                        <div class="customer-name-group" style="margin-bottom: 10px;">
+                            <label for="customerName">Customer Name (Optional):</label>
+                            <input type="text" id="customerName" placeholder="Enter customer name..." style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 6px; margin-top: 5px;">
+                        </div>
                         <div class="payment-method-group">
                             <label for="paymentMethod">Payment Method:</label>
                             <select id="paymentMethod">
@@ -238,10 +242,20 @@
         <!-- Receipts Tab -->
         <div id="receiptsTab" class="tab-content">
             <h2>Receipt History</h2>
-            <div class="receipts-filter">
-                <input type="date" id="dateFilter" onchange="filterReceipts()">
-                <button onclick="clearDateFilter()" class="btn-secondary">Clear Filter</button>
-                <button onclick="deleteAllReceipts()" class="btn-delete admin-only" style="margin-left: 10px;">Delete All Records</button>
+            <div class="receipts-filter search-panel">
+                <div class="search-row">
+                    <input type="text" id="searchBillNo" placeholder="Search Bill Number (e.g. REC-123)" oninput="filterReceipts()">
+                    <input type="text" id="searchCustomer" placeholder="Search Customer Name" oninput="filterReceipts()">
+                    <select id="searchCategory" onchange="filterReceipts()">
+                        <option value="all">All Categories</option>
+                    </select>
+                </div>
+                <div class="search-row" style="margin-top: 10px;">
+                    <input type="number" id="searchTotal" placeholder="Search Total Amount (Rs)" oninput="filterReceipts()">
+                    <input type="date" id="dateFilter" onchange="filterReceipts()" title="Filter by Date">
+                    <button onclick="clearReceiptFilters()" class="btn-secondary">Clear Filters</button>
+                    <button onclick="deleteAllReceipts()" class="btn-delete admin-only" style="margin-left: auto;">Delete All Records</button>
+                </div>
             </div>
             <div id="receiptsList" class="receipts-list"></div>
         </div>
@@ -293,6 +307,54 @@
             <div class="modal-actions">
                 <button onclick="printReceipt()" class="btn-primary">Print</button>
                 <button onclick="closeReceiptModal()" class="btn-secondary">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div id="deleteModal" class="modal">
+        <div class="modal-content" style="max-width: 400px; text-align: center;">
+            <h3>Delete Receipt?</h3>
+            <p id="deleteModalText">This receipt will be permanently deleted.</p>
+            <div class="modal-actions" style="justify-content: center; margin-top: 20px;">
+                <button onclick="closeDeleteModal()" class="btn-secondary">Cancel</button>
+                <button id="confirmDeleteBtn" class="btn-delete">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Receipt Modal -->
+    <div id="editReceiptModal" class="modal">
+        <div class="modal-content" style="max-width: 800px;">
+            <h3>Edit Receipt <span id="editReceiptIdTitle"></span></h3>
+            <div class="form-inline" style="margin-bottom: 15px;">
+                <label>Customer Name:</label>
+                <input type="text" id="editCustomerName" style="margin-left: 10px; flex: 1;">
+            </div>
+            <div id="editReceiptItems" style="max-height: 400px; overflow-y: auto;"></div>
+            <div class="cart-summary" style="margin-top: 15px;">
+                <div class="summary-row"><span>Original Total:</span><span id="editOriginalTotal"></span></div>
+                <div class="summary-row"><span>New Total:</span><span id="editNewTotal" style="font-weight: bold;"></span></div>
+            </div>
+            <div class="modal-actions">
+                <button onclick="closeEditModal()" class="btn-secondary">Cancel</button>
+                <button id="saveEditBtn" class="btn-primary">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Refund Receipt Modal -->
+    <div id="refundModal" class="modal">
+        <div class="modal-content" style="max-width: 600px;">
+            <h3>Refund Receipt <span id="refundReceiptIdTitle"></span></h3>
+            <div id="refundItemsList" style="margin-bottom: 20px; max-height: 300px; overflow-y: auto;"></div>
+            <div class="summary-row">
+                <span>Total Refund Amount:</span>
+                <span id="refundTotalAmount" style="font-weight: bold; font-size: 1.2rem; color: var(--primary-red);">Rs. 0</span>
+            </div>
+            <div class="modal-actions">
+                <button onclick="closeRefundModal()" class="btn-secondary">Cancel</button>
+                <button id="confirmRefundBtn" class="btn-delete" style="background: #fd7e14;">Process Refund</button>
             </div>
         </div>
     </div>
